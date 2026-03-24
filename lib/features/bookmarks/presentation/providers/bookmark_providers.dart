@@ -1,87 +1,204 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/services/isar_service.dart';
+import '../../data/repositories/bookmark_repository_impl.dart';
 import '../../domain/entities/bookmark.dart';
+import '../../domain/repositories/bookmark_repository.dart';
 
-/// In-memory bookmark state notifier.
-/// In production, this will be backed by Isar.
-class BookmarkListNotifier extends StateNotifier<List<Bookmark>> {
-  BookmarkListNotifier() : super([]);
+// ── Repository provider ───────────────────────────────────────────────────────
 
-  void addBookmark(Bookmark bookmark) {
-    // Prevent duplicates.
-    if (state.any((b) => b.surahNumber == bookmark.surahNumber && b.ayahNumber == bookmark.ayahNumber)) {
-      return;
-    }
-    state = [...state, bookmark];
+/// Provides the [BookmarkRepository] backed by [IsarService].
+final bookmarkRepositoryProvider = Provider<BookmarkRepository>((ref) {
+  return BookmarkRepositoryImpl(IsarService.instance);
+});
+
+// ── State Notifier ────────────────────────────────────────────────────────────
+
+/// Manages the full list of bookmarks with CRUD operations.
+///
+/// All mutations immediately update local state and persist to storage.
+class BookmarkListNotifier extends StateNotifier<AsyncValue<List<Bookmark>>> {
+  final BookmarkRepository _repository;
+
+  BookmarkListNotifier(this._repository)
+      : super(const AsyncValue.loading()) {
+    _loadAll();
   }
 
-  void removeBookmark(String id) {
-    state = state.where((b) => b.id != id).toList();
+  Future<void> _loadAll() async {
+    state = const AsyncValue.loading();
+    final result = await _repository.getAllBookmarks();
+    state = result.fold(
+      (failure) => AsyncValue.error(failure.message, StackTrace.current),
+      AsyncValue.data,
+    );
   }
 
-  void toggleFavorite(String id) {
-    state = state.map((b) {
-      if (b.id == id) {
-        return Bookmark(
-          id: b.id,
-          surahNumber: b.surahNumber,
-          ayahNumber: b.ayahNumber,
-          surahName: b.surahName,
-          ayahText: b.ayahText,
-          page: b.page,
-          createdAt: b.createdAt,
-          note: b.note,
-          isFavorite: !b.isFavorite,
-          color: b.color,
-        );
-      }
-      return b;
-    }).toList();
+  /// Refreshes the list from storage.
+  Future<void> refresh() => _loadAll();
+
+  /// Adds a new bookmark. No-op if an identical ayah is already bookmarked.
+  Future<void> addBookmark(Bookmark bookmark) async {
+    final result = await _repository.addBookmark(bookmark);
+    result.fold(
+      (_) => null,
+      (_) => _loadAll(),
+    );
   }
 
-  void updateNote(String id, String note) {
-    state = state.map((b) {
-      if (b.id == id) {
-        return Bookmark(
-          id: b.id,
-          surahNumber: b.surahNumber,
-          ayahNumber: b.ayahNumber,
-          surahName: b.surahName,
-          ayahText: b.ayahText,
-          page: b.page,
-          createdAt: b.createdAt,
-          note: note,
-          isFavorite: b.isFavorite,
-          color: b.color,
-        );
-      }
-      return b;
-    }).toList();
+  /// Removes the bookmark with the given [id].
+  Future<void> removeBookmark(String id) async {
+    final result = await _repository.removeBookmark(id);
+    result.fold(
+      (_) => null,
+      (_) => _loadAll(),
+    );
   }
 
+  /// Toggles the favourite flag for the bookmark with the given [id].
+  Future<void> toggleFavorite(String id) async {
+    final current = state.valueOrNull ?? [];
+    final bookmark = current.where((b) => b.id == id).firstOrNull;
+    if (bookmark == null) return;
+
+    final updated = bookmark.copyWith(isFavorite: !bookmark.isFavorite);
+    final result = await _repository.updateBookmark(updated);
+    result.fold(
+      (_) => null,
+      (_) => _loadAll(),
+    );
+  }
+
+  /// Updates the note on a bookmark.
+  Future<void> updateNote(String id, String note) async {
+    final current = state.valueOrNull ?? [];
+    final bookmark = current.where((b) => b.id == id).firstOrNull;
+    if (bookmark == null) return;
+
+    final updated = bookmark.copyWith(note: note);
+    final result = await _repository.updateBookmark(updated);
+    result.fold(
+      (_) => null,
+      (_) => _loadAll(),
+    );
+  }
+
+  /// Moves a bookmark to a different folder.
+  Future<void> moveToFolder(String id, String folder) async {
+    final current = state.valueOrNull ?? [];
+    final bookmark = current.where((b) => b.id == id).firstOrNull;
+    if (bookmark == null) return;
+
+    final updated = bookmark.copyWith(folder: folder);
+    final result = await _repository.updateBookmark(updated);
+    result.fold(
+      (_) => null,
+      (_) => _loadAll(),
+    );
+  }
+
+  /// Changes the colour label of a bookmark.
+  Future<void> updateColor(String id, BookmarkColor color) async {
+    final current = state.valueOrNull ?? [];
+    final bookmark = current.where((b) => b.id == id).firstOrNull;
+    if (bookmark == null) return;
+
+    final updated = bookmark.copyWith(color: color);
+    final result = await _repository.updateBookmark(updated);
+    result.fold(
+      (_) => null,
+      (_) => _loadAll(),
+    );
+  }
+
+  /// Clears all bookmarks.
+  Future<void> clearAll() async {
+    final result = await _repository.clearAllBookmarks();
+    result.fold(
+      (_) => null,
+      (_) => state = const AsyncValue.data([]),
+    );
+  }
+
+  /// Returns true if the given ayah is already bookmarked (synchronous).
   bool isBookmarked(int surahNumber, int ayahNumber) {
-    return state.any(
+    final list = state.valueOrNull ?? [];
+    return list.any(
       (b) => b.surahNumber == surahNumber && b.ayahNumber == ayahNumber,
     );
   }
 }
 
+/// Provides the [BookmarkListNotifier] and its state.
 final bookmarkListProvider =
-    StateNotifierProvider<BookmarkListNotifier, List<Bookmark>>((ref) {
-  return BookmarkListNotifier();
+    StateNotifierProvider<BookmarkListNotifier, AsyncValue<List<Bookmark>>>(
+  (ref) => BookmarkListNotifier(ref.watch(bookmarkRepositoryProvider)),
+);
+
+// ── Derived providers ─────────────────────────────────────────────────────────
+
+/// Provides bookmarks for a specific folder.
+final bookmarksByFolderProvider =
+    Provider.family<List<Bookmark>, String>((ref, folder) {
+  final state = ref.watch(bookmarkListProvider);
+  final all = state.valueOrNull ?? [];
+  if (folder == 'الكل') return all;
+  return all.where((b) => b.folder == folder).toList();
 });
 
-/// Derived provider: only favorite bookmarks.
+/// Provides only favourite bookmarks.
 final favoritesProvider = Provider<List<Bookmark>>((ref) {
-  final bookmarks = ref.watch(bookmarkListProvider);
-  return bookmarks.where((b) => b.isFavorite).toList();
+  final state = ref.watch(bookmarkListProvider);
+  final all = state.valueOrNull ?? [];
+  return all.where((b) => b.isFavorite).toList();
 });
 
-/// Derived provider: check if specific ayah is bookmarked.
+/// Provides distinct folder names derived from the current bookmark list.
+final folderNamesProvider = Provider<List<String>>((ref) {
+  final state = ref.watch(bookmarkListProvider);
+  final all = state.valueOrNull ?? [];
+  final folders = <String>{'عام'};
+  for (final b in all) {
+    folders.add(b.folder);
+  }
+  return folders.toList()..sort();
+});
+
+/// Returns true when the given (surahNumber, ayahNumber) pair is bookmarked.
 final isBookmarkedProvider = Provider.family<bool, (int, int)>((ref, params) {
   final (surahNumber, ayahNumber) = params;
-  final bookmarks = ref.watch(bookmarkListProvider);
-  return bookmarks.any(
+  final state = ref.watch(bookmarkListProvider);
+  final all = state.valueOrNull ?? [];
+  return all.any(
     (b) => b.surahNumber == surahNumber && b.ayahNumber == ayahNumber,
   );
 });
+
+/// Provides the bookmark object for a specific ayah, if it exists.
+final bookmarkForAyahProvider =
+    Provider.family<Bookmark?, (int, int)>((ref, params) {
+  final (surahNumber, ayahNumber) = params;
+  final state = ref.watch(bookmarkListProvider);
+  final all = state.valueOrNull ?? [];
+  try {
+    return all.firstWhere(
+      (b) => b.surahNumber == surahNumber && b.ayahNumber == ayahNumber,
+    );
+  } catch (_) {
+    return null;
+  }
+});
+
+/// Provides the count of bookmarks per folder.
+final bookmarkCountByFolderProvider =
+    Provider.family<int, String>((ref, folder) {
+  final state = ref.watch(bookmarkListProvider);
+  final all = state.valueOrNull ?? [];
+  if (folder == 'الكل') return all.length;
+  return all.where((b) => b.folder == folder).length;
+});
+
+// ── Currently selected folder for the bookmarks screen ───────────────────────
+
+/// Tracks the active folder tab on the bookmarks screen.
+final selectedFolderProvider = StateProvider<String>((ref) => 'الكل');
