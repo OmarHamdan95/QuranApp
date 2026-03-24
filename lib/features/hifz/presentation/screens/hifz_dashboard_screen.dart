@@ -9,8 +9,9 @@ import '../../../../core/theme/app_text_styles.dart';
 import '../../domain/entities/hifz_progress.dart';
 import '../providers/hifz_providers.dart';
 
-/// Full-featured Hifz Dashboard with progress overview, streak,
-/// calendar heatmap, per-surah progress, and quick actions.
+/// Full-featured Hifz Dashboard with modern visual progress indicators,
+/// circular progress, streak displays, calendar heatmap, per-surah
+/// progress, and quick actions.
 class HifzDashboardScreen extends ConsumerWidget {
   const HifzDashboardScreen({super.key});
 
@@ -24,96 +25,132 @@ class HifzDashboardScreen extends ConsumerWidget {
     final todayStudied = ref.watch(todayStudiedAyahsProvider);
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(
-          'الحفظ',
-          style: AppTextStyles.arabicHeadline.copyWith(color: AppColors.primary),
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.add_circle_outline),
-            tooltip: 'خطة جديدة',
-            onPressed: () => context.pushNamed(RouteNames.hifzPlanSetup),
+      backgroundColor:
+          isDark ? AppColors.backgroundDark : AppColors.backgroundLight,
+      body: CustomScrollView(
+        slivers: [
+          // ── Hero header ──
+          SliverAppBar(
+            expandedHeight: 300,
+            pinned: true,
+            backgroundColor: AppColors.primary,
+            flexibleSpace: FlexibleSpaceBar(
+              background: _ProgressHeroCard(progress: progress),
+            ),
+            title: Text(
+              'الحفظ',
+              style: AppTextStyles.arabicBody.copyWith(
+                color: Colors.white,
+                fontWeight: FontWeight.w700,
+                fontSize: 16,
+              ),
+              textDirection: TextDirection.rtl,
+            ),
+            centerTitle: true,
+            actions: [
+              IconButton(
+                icon: Container(
+                  width: 34,
+                  height: 34,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(Icons.add_rounded,
+                      color: Colors.white, size: 20),
+                ),
+                tooltip: 'خطة جديدة',
+                onPressed: () =>
+                    context.pushNamed(RouteNames.hifzPlanSetup),
+              ),
+            ],
+          ),
+
+          // ── Content ──
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+            sliver: SliverList(
+              delegate: SliverChildListDelegate([
+                // ── Streak & Stats Row ──
+                _StatsRow(progress: progress),
+                const SizedBox(height: 16),
+
+                // ── Today's Goal ──
+                if (activePlan != null) ...[
+                  _TodayGoalCard(
+                    plan: activePlan,
+                    todayGoalFraction: todayGoal,
+                    todayStudied: todayStudied,
+                    isDark: isDark,
+                  ),
+                  const SizedBox(height: 16),
+                ],
+
+                // ── Calendar Heatmap ──
+                _CalendarHeatmap(isDark: isDark),
+                const SizedBox(height: 16),
+
+                // ── Quick Actions ──
+                _SectionTitle(title: 'الإجراءات السريعة', isDark: isDark),
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _QuickActionButton(
+                        icon: Icons.quiz_outlined,
+                        label: 'اختبر نفسك',
+                        color: AppColors.secondary,
+                        isDark: isDark,
+                        onTap: () =>
+                            context.pushNamed(RouteNames.selfTest),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: _QuickActionButton(
+                        icon: Icons.edit_note_outlined,
+                        label: 'سجّل درس',
+                        color: AppColors.tertiary,
+                        isDark: isDark,
+                        onTap: () =>
+                            _showLogSessionDialog(context, ref),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: _QuickActionButton(
+                        icon: Icons.emoji_events_outlined,
+                        label: 'المسابقات',
+                        color: AppColors.info,
+                        isDark: isDark,
+                        onTap: () =>
+                            context.pushNamed(RouteNames.mosabqatHome),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 20),
+
+                // ── Per-Surah Progress ──
+                _SectionTitle(title: 'تقدم السور', isDark: isDark),
+                const SizedBox(height: 10),
+                _SurahProgressList(
+                    surahList: progress.surahProgress, isDark: isDark),
+                const SizedBox(height: 20),
+
+                // ── Per-Juz Overview ──
+                _SectionTitle(
+                    title: 'نظرة عامة بالأجزاء', isDark: isDark),
+                const SizedBox(height: 10),
+                _JuzOverview(
+                    totalMemorized: progress.totalMemorizedAyahs,
+                    isDark: isDark),
+
+                SizedBox(height: context.bottomPadding + 80),
+              ]),
+            ),
           ),
         ],
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            // ── Hero Progress Card ──
-            _ProgressHeroCard(progress: progress),
-            const SizedBox(height: 16),
-
-            // ── Streak & Stats Row ──
-            _StatsRow(progress: progress),
-            const SizedBox(height: 16),
-
-            // ── Today's Goal ──
-            if (activePlan != null) ...[
-              _TodayGoalCard(
-                plan: activePlan,
-                todayGoalFraction: todayGoal,
-                todayStudied: todayStudied,
-                isDark: isDark,
-              ),
-              const SizedBox(height: 16),
-            ],
-
-            // ── Calendar Heatmap ──
-            _CalendarHeatmap(isDark: isDark),
-            const SizedBox(height: 16),
-
-            // ── Quick Actions ──
-            _SectionTitle(title: 'الإجراءات السريعة', isDark: isDark),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                Expanded(
-                  child: _QuickActionButton(
-                    icon: Icons.quiz_outlined,
-                    label: 'اختبر نفسك',
-                    color: AppColors.secondary,
-                    onTap: () => context.pushNamed(RouteNames.selfTest),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: _QuickActionButton(
-                    icon: Icons.edit_note_outlined,
-                    label: 'سجّل درس',
-                    color: AppColors.tertiary,
-                    onTap: () => _showLogSessionDialog(context, ref),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: _QuickActionButton(
-                    icon: Icons.emoji_events_outlined,
-                    label: 'المسابقات',
-                    color: AppColors.info,
-                    onTap: () => context.pushNamed(RouteNames.mosabqatHome),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-
-            // ── Per-Surah Progress ──
-            _SectionTitle(title: 'تقدم السور', isDark: isDark),
-            const SizedBox(height: 8),
-            _SurahProgressList(surahList: progress.surahProgress, isDark: isDark),
-            const SizedBox(height: 16),
-
-            // ── Per-Juz Overview ──
-            _SectionTitle(title: 'نظرة عامة بالأجزاء', isDark: isDark),
-            const SizedBox(height: 8),
-            _JuzOverview(totalMemorized: progress.totalMemorizedAyahs, isDark: isDark),
-
-            SizedBox(height: context.bottomPadding + 80),
-          ],
-        ),
       ),
     );
   }
@@ -136,9 +173,7 @@ class HifzDashboardScreen extends ConsumerWidget {
   }
 }
 
-// ─────────────────────────────────────────────
-// Hero Progress Card
-// ─────────────────────────────────────────────
+// ── Hero Progress Card ───────────────────────────────────────────────────────
 
 class _ProgressHeroCard extends StatelessWidget {
   final HifzProgress progress;
@@ -149,46 +184,48 @@ class _ProgressHeroCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final pct = (progress.overallPercentage * 100).toStringAsFixed(1);
     return Container(
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [AppColors.primary, AppColors.primaryDark],
         ),
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.primary.withValues(alpha: 0.35),
-            blurRadius: 16,
-            offset: const Offset(0, 6),
-          ),
-        ],
       ),
-      child: Column(
-        children: [
-          Text(
-            'تقدم الحفظ',
-            style: AppTextStyles.arabicBody.copyWith(color: Colors.white70),
-            textDirection: TextDirection.rtl,
-          ),
-          const SizedBox(height: 20),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
+      child: SafeArea(
+        bottom: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(24, 60, 24, 24),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.end,
             children: [
+              Text(
+                'تقدم الحفظ',
+                style: AppTextStyles.arabicCaption.copyWith(
+                  color: Colors.white.withValues(alpha: 0.7),
+                  fontSize: 13,
+                ),
+                textDirection: TextDirection.rtl,
+              ),
+              const SizedBox(height: 16),
               // Circular progress
               SizedBox(
-                width: 130,
-                height: 130,
+                width: 140,
+                height: 140,
                 child: Stack(
                   alignment: Alignment.center,
                   children: [
-                    CircularProgressIndicator(
-                      value: progress.overallPercentage,
-                      strokeWidth: 12,
-                      backgroundColor: Colors.white.withValues(alpha: 0.2),
-                      valueColor: const AlwaysStoppedAnimation(
-                        AppColors.secondaryLight,
+                    SizedBox(
+                      width: 140,
+                      height: 140,
+                      child: CircularProgressIndicator(
+                        value: progress.overallPercentage,
+                        strokeWidth: 10,
+                        backgroundColor:
+                            Colors.white.withValues(alpha: 0.15),
+                        valueColor: const AlwaysStoppedAnimation(
+                          AppColors.secondaryLight,
+                        ),
+                        strokeCap: StrokeCap.round,
                       ),
                     ),
                     Column(
@@ -204,7 +241,7 @@ class _ProgressHeroCard extends StatelessWidget {
                         Text(
                           'من القرآن',
                           style: AppTextStyles.arabicCaption.copyWith(
-                            color: Colors.white60,
+                            color: Colors.white.withValues(alpha: 0.6),
                             fontSize: 12,
                           ),
                           textDirection: TextDirection.rtl,
@@ -214,29 +251,47 @@ class _ProgressHeroCard extends StatelessWidget {
                   ],
                 ),
               ),
+              const SizedBox(height: 20),
+              // Stats row
+              Container(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 20, vertical: 12),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    _HeroStat(
+                      value: '${progress.totalMemorizedAyahs}',
+                      label: 'آية محفوظة',
+                    ),
+                    Container(
+                      width: 1,
+                      height: 30,
+                      color: Colors.white.withValues(alpha: 0.2),
+                    ),
+                    _HeroStat(
+                      value: progress.juzMemorized.toStringAsFixed(1),
+                      label: 'جزء',
+                    ),
+                    Container(
+                      width: 1,
+                      height: 30,
+                      color: Colors.white.withValues(alpha: 0.2),
+                    ),
+                    _HeroStat(
+                      value:
+                          '${progress.surahProgress.where((s) => s.isComplete).length}',
+                      label: 'سورة',
+                    ),
+                  ],
+                ),
+              ),
             ],
           ),
-          const SizedBox(height: 20),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [
-              _HeroStat(
-                value: '${progress.totalMemorizedAyahs}',
-                label: 'آية محفوظة',
-              ),
-              _Divider(),
-              _HeroStat(
-                value: progress.juzMemorized.toStringAsFixed(1),
-                label: 'جزء',
-              ),
-              _Divider(),
-              _HeroStat(
-                value: '${progress.surahProgress.where((s) => s.isComplete).length}',
-                label: 'سورة',
-              ),
-            ],
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -254,7 +309,7 @@ class _HeroStat extends StatelessWidget {
       children: [
         Text(
           value,
-          style: AppTextStyles.headlineMedium.copyWith(
+          style: AppTextStyles.headlineSmall.copyWith(
             color: Colors.white,
             fontWeight: FontWeight.w700,
           ),
@@ -262,7 +317,10 @@ class _HeroStat extends StatelessWidget {
         const SizedBox(height: 2),
         Text(
           label,
-          style: AppTextStyles.arabicCaption.copyWith(color: Colors.white60),
+          style: AppTextStyles.arabicCaption.copyWith(
+            color: Colors.white.withValues(alpha: 0.6),
+            fontSize: 11,
+          ),
           textDirection: TextDirection.rtl,
         ),
       ],
@@ -270,20 +328,7 @@ class _HeroStat extends StatelessWidget {
   }
 }
 
-class _Divider extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 1,
-      height: 36,
-      color: Colors.white24,
-    );
-  }
-}
-
-// ─────────────────────────────────────────────
-// Stats Row (Streak + Badges)
-// ─────────────────────────────────────────────
+// ── Stats Row ────────────────────────────────────────────────────────────────
 
 class _StatsRow extends StatelessWidget {
   final HifzProgress progress;
@@ -297,7 +342,7 @@ class _StatsRow extends StatelessWidget {
       children: [
         Expanded(
           child: _StatChip(
-            icon: Icons.local_fire_department,
+            icon: Icons.local_fire_department_rounded,
             iconColor: AppColors.warning,
             value: '${progress.currentStreak}',
             label: 'سلسلة الأيام',
@@ -307,7 +352,7 @@ class _StatsRow extends StatelessWidget {
         const SizedBox(width: 10),
         Expanded(
           child: _StatChip(
-            icon: Icons.emoji_events,
+            icon: Icons.emoji_events_rounded,
             iconColor: AppColors.secondary,
             value: '${progress.longestStreak}',
             label: 'أطول سلسلة',
@@ -317,9 +362,10 @@ class _StatsRow extends StatelessWidget {
         const SizedBox(width: 10),
         Expanded(
           child: _StatChip(
-            icon: Icons.auto_stories,
+            icon: Icons.auto_stories_rounded,
             iconColor: AppColors.primary,
-            value: '${(progress.totalMemorizedAyahs / 604).toStringAsFixed(1)}',
+            value:
+                (progress.totalMemorizedAyahs / 604).toStringAsFixed(1),
             label: 'صفحة',
             isDark: isDark,
           ),
@@ -347,10 +393,10 @@ class _StatChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 14),
       decoration: BoxDecoration(
         color: isDark ? AppColors.cardDark : AppColors.cardLight,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(18),
         border: Border.all(
           color: isDark ? AppColors.dividerDark : AppColors.dividerLight,
           width: 0.5,
@@ -358,20 +404,32 @@ class _StatChip extends StatelessWidget {
       ),
       child: Column(
         children: [
-          Icon(icon, color: iconColor, size: 24),
-          const SizedBox(height: 4),
+          Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: iconColor.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(icon, color: iconColor, size: 20),
+          ),
+          const SizedBox(height: 8),
           Text(
             value,
             style: AppTextStyles.headlineMedium.copyWith(
               fontWeight: FontWeight.w700,
-              color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+              color: isDark
+                  ? AppColors.textPrimaryDark
+                  : AppColors.textPrimaryLight,
             ),
           ),
           Text(
             label,
             style: AppTextStyles.arabicCaption.copyWith(
-              color: AppColors.textTertiaryLight,
-              fontSize: 12,
+              color: isDark
+                  ? AppColors.textTertiaryDark
+                  : AppColors.textTertiaryLight,
+              fontSize: 11,
             ),
             textDirection: TextDirection.rtl,
           ),
@@ -381,9 +439,7 @@ class _StatChip extends StatelessWidget {
   }
 }
 
-// ─────────────────────────────────────────────
-// Today's Goal Card
-// ─────────────────────────────────────────────
+// ── Today's Goal Card ────────────────────────────────────────────────────────
 
 class _TodayGoalCard extends StatelessWidget {
   final dynamic plan;
@@ -401,13 +457,20 @@ class _TodayGoalCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final dailyGoal = plan.dailyAyahGoal as int;
+    final isComplete = todayGoalFraction >= 1.0;
+
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         color: isDark ? AppColors.cardDark : AppColors.cardLight,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: isDark ? AppColors.dividerDark : AppColors.dividerLight,
+          color: isComplete
+              ? AppColors.success.withValues(alpha: 0.3)
+              : isDark
+                  ? AppColors.dividerDark
+                  : AppColors.dividerLight,
+          width: isComplete ? 1.5 : 0.5,
         ),
       ),
       child: Column(
@@ -416,48 +479,91 @@ class _TodayGoalCard extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                'هدف اليوم',
-                style: AppTextStyles.arabicBody.copyWith(
-                  fontWeight: FontWeight.w700,
-                  color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
-                ),
-                textDirection: TextDirection.rtl,
-              ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
-                  color: AppColors.primary.withValues(alpha: 0.1),
+                  color: isComplete
+                      ? AppColors.success.withValues(alpha: 0.1)
+                      : AppColors.primary.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
                   '$todayStudied / $dailyGoal آية',
                   style: AppTextStyles.arabicCaption.copyWith(
-                    color: AppColors.primary,
+                    color: isComplete
+                        ? AppColors.success
+                        : AppColors.primary,
                     fontWeight: FontWeight.w700,
                   ),
                   textDirection: TextDirection.rtl,
                 ),
               ),
+              Row(
+                children: [
+                  Text(
+                    'هدف اليوم',
+                    style: AppTextStyles.arabicBody.copyWith(
+                      fontWeight: FontWeight.w700,
+                      color: isDark
+                          ? AppColors.textPrimaryDark
+                          : AppColors.textPrimaryLight,
+                    ),
+                    textDirection: TextDirection.rtl,
+                  ),
+                  const SizedBox(width: 6),
+                  Icon(
+                    isComplete
+                        ? Icons.check_circle_rounded
+                        : Icons.flag_rounded,
+                    color: isComplete
+                        ? AppColors.success
+                        : AppColors.primary,
+                    size: 20,
+                  ),
+                ],
+              ),
             ],
           ),
-          const SizedBox(height: 12),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(6),
-            child: LinearProgressIndicator(
-              value: todayGoalFraction.clamp(0.0, 1.0),
-              backgroundColor: AppColors.primary.withValues(alpha: 0.12),
-              valueColor: const AlwaysStoppedAnimation(AppColors.primary),
-              minHeight: 10,
-            ),
+          const SizedBox(height: 14),
+          // Progress bar
+          Stack(
+            children: [
+              Container(
+                height: 10,
+                decoration: BoxDecoration(
+                  color: (isComplete
+                          ? AppColors.success
+                          : AppColors.primary)
+                      .withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(5),
+                ),
+              ),
+              FractionallySizedBox(
+                widthFactor: todayGoalFraction.clamp(0.0, 1.0),
+                child: Container(
+                  height: 10,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: isComplete
+                          ? [AppColors.success, AppColors.success]
+                          : [AppColors.primary, AppColors.primaryLight],
+                    ),
+                    borderRadius: BorderRadius.circular(5),
+                  ),
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 10),
           Text(
-            todayGoalFraction >= 1.0
-                ? 'أحسنت! أكملت هدف اليوم 🎉'
+            isComplete
+                ? 'أحسنت! أكملت هدف اليوم'
                 : 'باقي ${dailyGoal - todayStudied} آيات لإتمام هدف اليوم',
             style: AppTextStyles.arabicCaption.copyWith(
-              color: AppColors.textTertiaryLight,
+              color: isDark
+                  ? AppColors.textTertiaryDark
+                  : AppColors.textTertiaryLight,
             ),
             textDirection: TextDirection.rtl,
           ),
@@ -467,9 +573,7 @@ class _TodayGoalCard extends StatelessWidget {
   }
 }
 
-// ─────────────────────────────────────────────
-// Calendar Heatmap (past 28 days)
-// ─────────────────────────────────────────────
+// ── Calendar Heatmap ─────────────────────────────────────────────────────────
 
 class _CalendarHeatmap extends StatelessWidget {
   final bool isDark;
@@ -478,11 +582,9 @@ class _CalendarHeatmap extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Generate mock heatmap data for the last 28 days
     final today = DateTime.now();
     final days = List.generate(28, (i) {
       final day = today.subtract(Duration(days: 27 - i));
-      // Simulate study activity — random pattern
       final intensity = (i % 7 == 0 || i % 5 == 0)
           ? 0.0
           : (i % 3 == 0)
@@ -494,12 +596,13 @@ class _CalendarHeatmap extends StatelessWidget {
     });
 
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         color: isDark ? AppColors.cardDark : AppColors.cardLight,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(20),
         border: Border.all(
           color: isDark ? AppColors.dividerDark : AppColors.dividerLight,
+          width: 0.5,
         ),
       ),
       child: Column(
@@ -509,18 +612,21 @@ class _CalendarHeatmap extends StatelessWidget {
             'نشاط الحفظ (٢٨ يومًا)',
             style: AppTextStyles.arabicBody.copyWith(
               fontWeight: FontWeight.w700,
-              color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+              color: isDark
+                  ? AppColors.textPrimaryDark
+                  : AppColors.textPrimaryLight,
             ),
             textDirection: TextDirection.rtl,
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 14),
           GridView.builder(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            gridDelegate:
+                const SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: 7,
-              crossAxisSpacing: 4,
-              mainAxisSpacing: 4,
+              crossAxisSpacing: 5,
+              mainAxisSpacing: 5,
             ),
             itemCount: days.length,
             itemBuilder: (context, i) {
@@ -536,41 +642,53 @@ class _CalendarHeatmap extends StatelessWidget {
                         ? (isDark
                             ? AppColors.dividerDark
                             : AppColors.dividerLight)
-                        : AppColors.primary
-                            .withValues(alpha: 0.2 + item.intensity * 0.6),
-                    borderRadius: BorderRadius.circular(4),
+                        : AppColors.primary.withValues(
+                            alpha: 0.2 + item.intensity * 0.6),
+                    borderRadius: BorderRadius.circular(6),
                     border: isToday
-                        ? Border.all(color: AppColors.secondary, width: 2)
+                        ? Border.all(
+                            color: AppColors.secondary, width: 2)
                         : null,
                   ),
                 ),
               );
             },
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 12),
           Row(
             mainAxisAlignment: MainAxisAlignment.end,
             children: [
               Text(
                 'أقل  ',
-                style: AppTextStyles.arabicCaption
-                    .copyWith(color: AppColors.textTertiaryLight, fontSize: 11),
+                style: AppTextStyles.arabicCaption.copyWith(
+                  color: isDark
+                      ? AppColors.textTertiaryDark
+                      : AppColors.textTertiaryLight,
+                  fontSize: 11,
+                ),
+                textDirection: TextDirection.rtl,
               ),
               ...List.generate(4, (i) {
                 return Container(
-                  width: 12,
-                  height: 12,
+                  width: 14,
+                  height: 14,
                   margin: const EdgeInsets.only(right: 3),
                   decoration: BoxDecoration(
-                    color: AppColors.primary.withValues(alpha: 0.2 + i * 0.25),
-                    borderRadius: BorderRadius.circular(2),
+                    color: AppColors.primary
+                        .withValues(alpha: 0.2 + i * 0.25),
+                    borderRadius: BorderRadius.circular(3),
                   ),
                 );
               }),
               Text(
                 '  أكثر',
-                style: AppTextStyles.arabicCaption
-                    .copyWith(color: AppColors.textTertiaryLight, fontSize: 11),
+                style: AppTextStyles.arabicCaption.copyWith(
+                  color: isDark
+                      ? AppColors.textTertiaryDark
+                      : AppColors.textTertiaryLight,
+                  fontSize: 11,
+                ),
+                textDirection: TextDirection.rtl,
               ),
             ],
           ),
@@ -580,9 +698,7 @@ class _CalendarHeatmap extends StatelessWidget {
   }
 }
 
-// ─────────────────────────────────────────────
-// Surah Progress List
-// ─────────────────────────────────────────────
+// ── Surah Progress List ──────────────────────────────────────────────────────
 
 class _SurahProgressList extends StatelessWidget {
   final List<SurahHifzProgress> surahList;
@@ -602,7 +718,6 @@ class _SurahProgressList extends StatelessWidget {
       );
     }
 
-    // Show in-progress first, then memorized
     final sorted = [...surahList]
       ..sort((a, b) {
         if (a.status == MemorizationStatus.inProgress &&
@@ -615,9 +730,10 @@ class _SurahProgressList extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         color: isDark ? AppColors.cardDark : AppColors.cardLight,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(20),
         border: Border.all(
           color: isDark ? AppColors.dividerDark : AppColors.dividerLight,
+          width: 0.5,
         ),
       ),
       child: ListView.separated(
@@ -652,17 +768,28 @@ class _SurahProgressTile extends StatelessWidget {
       MemorizationStatus.notStarted => AppColors.textTertiaryLight,
     };
     final statusIcon = switch (item.status) {
-      MemorizationStatus.memorized => Icons.check_circle,
+      MemorizationStatus.memorized => Icons.check_circle_rounded,
       MemorizationStatus.inProgress => Icons.timer_outlined,
-      MemorizationStatus.needsRevision => Icons.warning_amber_rounded,
-      MemorizationStatus.notStarted => Icons.radio_button_unchecked,
+      MemorizationStatus.needsRevision =>
+        Icons.warning_amber_rounded,
+      MemorizationStatus.notStarted =>
+        Icons.radio_button_unchecked,
     };
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      padding:
+          const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       child: Row(
         children: [
-          Icon(statusIcon, color: statusColor, size: 22),
+          Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: statusColor.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(statusIcon, color: statusColor, size: 20),
+          ),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
@@ -690,16 +817,27 @@ class _SurahProgressTile extends StatelessWidget {
                     ),
                   ],
                 ),
-                const SizedBox(height: 6),
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(3),
-                  child: LinearProgressIndicator(
-                    value: item.completionPercentage,
-                    backgroundColor:
-                        statusColor.withValues(alpha: 0.12),
-                    valueColor: AlwaysStoppedAnimation(statusColor),
-                    minHeight: 5,
-                  ),
+                const SizedBox(height: 8),
+                Stack(
+                  children: [
+                    Container(
+                      height: 6,
+                      decoration: BoxDecoration(
+                        color: statusColor.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(3),
+                      ),
+                    ),
+                    FractionallySizedBox(
+                      widthFactor: item.completionPercentage,
+                      child: Container(
+                        height: 6,
+                        decoration: BoxDecoration(
+                          color: statusColor,
+                          borderRadius: BorderRadius.circular(3),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -710,27 +848,26 @@ class _SurahProgressTile extends StatelessWidget {
   }
 }
 
-// ─────────────────────────────────────────────
-// Juz Overview
-// ─────────────────────────────────────────────
+// ── Juz Overview ─────────────────────────────────────────────────────────────
 
 class _JuzOverview extends StatelessWidget {
   final int totalMemorized;
   final bool isDark;
 
-  const _JuzOverview({required this.totalMemorized, required this.isDark});
+  const _JuzOverview(
+      {required this.totalMemorized, required this.isDark});
 
   @override
   Widget build(BuildContext context) {
-    // Approximate ayahs per juz: 6236 / 30 ≈ 208 each
     const ayahsPerJuz = 208;
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         color: isDark ? AppColors.cardDark : AppColors.cardLight,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(20),
         border: Border.all(
           color: isDark ? AppColors.dividerDark : AppColors.dividerLight,
+          width: 0.5,
         ),
       ),
       child: Column(
@@ -751,25 +888,33 @@ class _JuzOverview extends StatelessWidget {
               if (fraction >= 1.0) {
                 bg = AppColors.primary;
               } else if (fraction > 0) {
-                bg = AppColors.primary.withValues(alpha: 0.25 + fraction * 0.4);
+                bg = AppColors.primary
+                    .withValues(alpha: 0.25 + fraction * 0.4);
               } else {
-                bg = isDark ? AppColors.dividerDark : AppColors.dividerLight;
+                bg = isDark
+                    ? AppColors.dividerDark
+                    : AppColors.dividerLight;
               }
 
               return Tooltip(
-                message: 'الجزء $juzNumber - ${(fraction * 100).round()}%',
+                message:
+                    'الجزء $juzNumber - ${(fraction * 100).round()}%',
                 child: Container(
-                  width: 36,
-                  height: 36,
+                  width: 38,
+                  height: 38,
                   decoration: BoxDecoration(
                     color: bg,
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(10),
                   ),
                   alignment: Alignment.center,
                   child: Text(
                     '$juzNumber',
                     style: AppTextStyles.labelSmall.copyWith(
-                      color: fraction >= 0.5 ? Colors.white : AppColors.textTertiaryLight,
+                      color: fraction >= 0.5
+                          ? Colors.white
+                          : isDark
+                              ? AppColors.textTertiaryDark
+                              : AppColors.textTertiaryLight,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -777,18 +922,21 @@ class _JuzOverview extends StatelessWidget {
               );
             }),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 12),
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              _JuzLegendDot(color: AppColors.primary, label: 'محفوظ'),
+              _JuzLegendDot(
+                  color: AppColors.primary, label: 'محفوظ'),
               const SizedBox(width: 12),
               _JuzLegendDot(
                   color: AppColors.primary.withValues(alpha: 0.4),
                   label: 'جزئي'),
               const SizedBox(width: 12),
               _JuzLegendDot(
-                  color: isDark ? AppColors.dividerDark : AppColors.dividerLight,
+                  color: isDark
+                      ? AppColors.dividerDark
+                      : AppColors.dividerLight,
                   label: 'لم يبدأ'),
             ],
           ),
@@ -810,16 +958,18 @@ class _JuzLegendDot extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         Container(
-          width: 12,
-          height: 12,
-          decoration:
-              BoxDecoration(color: color, borderRadius: BorderRadius.circular(3)),
+          width: 14,
+          height: 14,
+          decoration: BoxDecoration(
+              color: color, borderRadius: BorderRadius.circular(4)),
         ),
         const SizedBox(width: 4),
         Text(
           label,
-          style: AppTextStyles.arabicCaption
-              .copyWith(color: AppColors.textTertiaryLight, fontSize: 12),
+          style: AppTextStyles.arabicCaption.copyWith(
+            color: AppColors.textTertiaryLight,
+            fontSize: 12,
+          ),
           textDirection: TextDirection.rtl,
         ),
       ],
@@ -827,44 +977,62 @@ class _JuzLegendDot extends StatelessWidget {
   }
 }
 
-// ─────────────────────────────────────────────
-// Quick Action Button
-// ─────────────────────────────────────────────
+// ── Quick Action Button ──────────────────────────────────────────────────────
 
 class _QuickActionButton extends StatelessWidget {
   final IconData icon;
   final String label;
   final Color color;
+  final bool isDark;
   final VoidCallback onTap;
 
   const _QuickActionButton({
     required this.icon,
     required this.label,
     required this.color,
+    required this.isDark,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    final isDark = context.isDarkMode;
     return Material(
-      color: color.withValues(alpha: 0.08),
-      borderRadius: BorderRadius.circular(14),
+      color: isDark ? AppColors.cardDark : AppColors.cardLight,
+      borderRadius: BorderRadius.circular(18),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(14),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
+        borderRadius: BorderRadius.circular(18),
+        child: Container(
+          padding:
+              const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(
+              color:
+                  isDark ? AppColors.dividerDark : AppColors.dividerLight,
+              width: 0.5,
+            ),
+          ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(icon, color: color, size: 26),
-              const SizedBox(height: 6),
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Icon(icon, color: color, size: 24),
+              ),
+              const SizedBox(height: 8),
               Text(
                 label,
                 style: AppTextStyles.arabicCaption.copyWith(
-                  color: color,
-                  fontWeight: FontWeight.w700,
+                  color: isDark
+                      ? AppColors.textPrimaryDark
+                      : AppColors.textPrimaryLight,
+                  fontWeight: FontWeight.w600,
                   fontSize: 12,
                 ),
                 textAlign: TextAlign.center,
@@ -878,9 +1046,7 @@ class _QuickActionButton extends StatelessWidget {
   }
 }
 
-// ─────────────────────────────────────────────
-// Helpers
-// ─────────────────────────────────────────────
+// ── Helpers ──────────────────────────────────────────────────────────────────
 
 class _SectionTitle extends StatelessWidget {
   final String title;
@@ -894,7 +1060,9 @@ class _SectionTitle extends StatelessWidget {
       title,
       style: AppTextStyles.arabicBody.copyWith(
         fontWeight: FontWeight.w700,
-        color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+        color: isDark
+            ? AppColors.textPrimaryDark
+            : AppColors.textPrimaryLight,
       ),
       textDirection: TextDirection.rtl,
     );
@@ -910,29 +1078,43 @@ class _EmptyState extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.all(28),
       decoration: BoxDecoration(
         color: isDark ? AppColors.cardDark : AppColors.cardLight,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(20),
       ),
-      child: Text(
-        message,
-        style: AppTextStyles.arabicCaption.copyWith(
-            color: AppColors.textTertiaryLight),
-        textAlign: TextAlign.center,
-        textDirection: TextDirection.rtl,
+      child: Column(
+        children: [
+          Icon(
+            Icons.menu_book_rounded,
+            size: 40,
+            color: (isDark
+                    ? AppColors.textTertiaryDark
+                    : AppColors.textTertiaryLight)
+                .withValues(alpha: 0.4),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            message,
+            style: AppTextStyles.arabicCaption.copyWith(
+              color: isDark
+                  ? AppColors.textTertiaryDark
+                  : AppColors.textTertiaryLight,
+            ),
+            textAlign: TextAlign.center,
+            textDirection: TextDirection.rtl,
+          ),
+        ],
       ),
     );
   }
 }
 
-// ─────────────────────────────────────────────
-// Log Session Dialog
-// ─────────────────────────────────────────────
+// ── Log Session Dialog ───────────────────────────────────────────────────────
 
 class _LogSessionDialog extends StatefulWidget {
-  final void Function(int ayahsStudied, int ayahsRevised, int durationMinutes)
-      onSave;
+  final void Function(
+      int ayahsStudied, int ayahsRevised, int durationMinutes) onSave;
 
   const _LogSessionDialog({required this.onSave});
 
@@ -948,9 +1130,12 @@ class _LogSessionDialogState extends State<_LogSessionDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
+      shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20)),
       title: Text(
         'تسجيل درس',
-        style: AppTextStyles.arabicHeadline.copyWith(color: AppColors.primary),
+        style: AppTextStyles.arabicHeadline
+            .copyWith(color: AppColors.primary),
         textDirection: TextDirection.rtl,
       ),
       content: Column(
@@ -991,10 +1176,14 @@ class _LogSessionDialogState extends State<_LogSessionDialog> {
             widget.onSave(_ayahsStudied, _ayahsRevised, _duration);
             Navigator.of(context).pop();
           },
+          style: ElevatedButton.styleFrom(
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12)),
+          ),
           child: Text(
             'حفظ',
-            style: AppTextStyles.arabicCaption
-                .copyWith(color: Colors.white, fontWeight: FontWeight.w700),
+            style: AppTextStyles.arabicCaption.copyWith(
+                color: Colors.white, fontWeight: FontWeight.w700),
           ),
         ),
       ],
@@ -1026,7 +1215,8 @@ class _CountRow extends StatelessWidget {
           IconButton(
             icon: const Icon(Icons.remove_circle_outline),
             color: AppColors.primary,
-            onPressed: value > min ? () => onChanged(value - 1) : null,
+            onPressed:
+                value > min ? () => onChanged(value - 1) : null,
             padding: EdgeInsets.zero,
             constraints: const BoxConstraints(),
           ),
@@ -1042,7 +1232,8 @@ class _CountRow extends StatelessWidget {
           IconButton(
             icon: const Icon(Icons.add_circle_outline),
             color: AppColors.primary,
-            onPressed: value < max ? () => onChanged(value + 1) : null,
+            onPressed:
+                value < max ? () => onChanged(value + 1) : null,
             padding: EdgeInsets.zero,
             constraints: const BoxConstraints(),
           ),

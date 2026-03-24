@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/date_symbol_data_local.dart';
 
 import 'core/routing/app_router.dart';
 import 'core/theme/app_theme.dart';
@@ -27,6 +29,9 @@ void main() async {
       systemNavigationBarIconBrightness: Brightness.dark,
     ),
   );
+
+  // Initialize Arabic locale data for date/time formatting.
+  await initializeDateFormatting('ar');
 
   // TODO: Initialize Firebase when google-services.json is added.
   // await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
@@ -67,8 +72,9 @@ class QuranApp extends ConsumerWidget {
         Locale('en'),
       ],
       localizationsDelegates: const [
-        // TODO: Add app-specific localizations.
-        // AppLocalizations.delegate,
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
       ],
 
       // Builder to apply global text direction and media query overrides.

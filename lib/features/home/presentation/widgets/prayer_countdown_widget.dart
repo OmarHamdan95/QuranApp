@@ -30,11 +30,11 @@ NextPrayerInfo _buildPlaceholderNextPrayer() {
 
   // Approximate prayer schedule (hours in 24-hour format).
   final prayers = [
-    (name: 'Fajr',   nameAr: 'الفجر',   hour: 5,  minute: 15, color: AppColors.fajr),
-    (name: 'Dhuhr',  nameAr: 'الظهر',   hour: 12, minute: 30, color: AppColors.dhuhr),
-    (name: 'Asr',    nameAr: 'العصر',   hour: 15, minute: 45, color: AppColors.asr),
-    (name: 'Maghrib',nameAr: 'المغرب',  hour: 18, minute: 20, color: AppColors.maghrib),
-    (name: 'Isha',   nameAr: 'العشاء',  hour: 20, minute: 0,  color: AppColors.isha),
+    (name: 'Fajr',    nameAr: 'الفجر',   hour: 5,  minute: 15, color: AppColors.fajr),
+    (name: 'Dhuhr',   nameAr: 'الظهر',   hour: 12, minute: 30, color: AppColors.dhuhr),
+    (name: 'Asr',     nameAr: 'العصر',   hour: 15, minute: 45, color: AppColors.asr),
+    (name: 'Maghrib', nameAr: 'المغرب',  hour: 18, minute: 20, color: AppColors.maghrib),
+    (name: 'Isha',    nameAr: 'العشاء',  hour: 20, minute: 0,  color: AppColors.isha),
   ];
 
   for (final p in prayers) {
@@ -50,7 +50,7 @@ NextPrayerInfo _buildPlaceholderNextPrayer() {
     }
   }
 
-  // All prayers passed today — return tomorrow's Fajr.
+  // All prayers passed today -- return tomorrow's Fajr.
   final fajr = prayers.first;
   final tomorrowFajr = DateTime(
     now.year, now.month, now.day + 1, fajr.hour, fajr.minute);
@@ -102,7 +102,7 @@ class _PrayerCountdownWidgetState
     var remaining = nextPrayer.time.difference(now);
 
     if (remaining.isNegative || remaining == Duration.zero) {
-      // Prayer time passed — recalculate next prayer.
+      // Prayer time passed -- recalculate next prayer.
       ref.read(nextPrayerProvider.notifier).state =
           _buildPlaceholderNextPrayer();
       remaining = ref.read(nextPrayerProvider).time.difference(now);
@@ -134,12 +134,11 @@ class _PrayerCountdownWidgetState
       onTap: () => context.pushNamed(RouteNames.prayerTimes),
       child: Container(
         margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         decoration: BoxDecoration(
           color: isDark ? AppColors.cardDark : AppColors.cardLight,
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: nextPrayer.color.withValues(alpha: 0.3),
+            color: nextPrayer.color.withValues(alpha: 0.2),
             width: 1,
           ),
           boxShadow: isDark
@@ -147,55 +146,77 @@ class _PrayerCountdownWidgetState
               : [
                   BoxShadow(
                     color: nextPrayer.color.withValues(alpha: 0.08),
-                    blurRadius: 12,
-                    offset: const Offset(0, 4),
+                    blurRadius: 16,
+                    spreadRadius: -2,
+                    offset: const Offset(0, 6),
                   ),
                 ],
         ),
-        child: Row(
+        child: Stack(
           children: [
-            // ── Prayer Icon ──────────────────────────────────────────
-            _PrayerIcon(color: nextPrayer.color, isDark: isDark),
-            const SizedBox(width: 14),
-
-            // ── Prayer Name ──────────────────────────────────────────
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Text(
-                    'الصلاة القادمة',
-                    style: AppTextStyles.arabicCaption.copyWith(
-                      color: isDark
-                          ? AppColors.textTertiaryDark
-                          : AppColors.textTertiaryLight,
-                      fontSize: 11,
-                    ),
-                    textDirection: TextDirection.rtl,
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    nextPrayer.nameArabic,
-                    style: AppTextStyles.arabicBody.copyWith(
-                      fontWeight: FontWeight.w800,
-                      color: nextPrayer.color,
-                      fontSize: 17,
-                    ),
-                    textDirection: TextDirection.rtl,
-                  ),
-                ],
+            // Subtle colored accent in the corner
+            Positioned(
+              top: -20,
+              left: -20,
+              child: Container(
+                width: 70,
+                height: 70,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: nextPrayer.color.withValues(alpha: isDark ? 0.06 : 0.04),
+                ),
               ),
             ),
 
-            const SizedBox(width: 12),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+              child: Row(
+                children: [
+                  // -- Prayer Icon --
+                  _PrayerIcon(color: nextPrayer.color, isDark: isDark),
+                  const SizedBox(width: 14),
 
-            // ── Countdown ────────────────────────────────────────────
-            _CountdownDisplay(
-              hours: hours,
-              minutes: minutes,
-              seconds: seconds,
-              color: nextPrayer.color,
-              isDark: isDark,
+                  // -- Prayer Info --
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Text(
+                          'الصلاة القادمة',
+                          style: AppTextStyles.arabicCaption.copyWith(
+                            color: isDark
+                                ? AppColors.textTertiaryDark
+                                : AppColors.textTertiaryLight,
+                            fontSize: 11,
+                          ),
+                          textDirection: TextDirection.rtl,
+                        ),
+                        const SizedBox(height: 3),
+                        Text(
+                          nextPrayer.nameArabic,
+                          style: AppTextStyles.arabicBody.copyWith(
+                            fontWeight: FontWeight.w800,
+                            color: nextPrayer.color,
+                            fontSize: 18,
+                          ),
+                          textDirection: TextDirection.rtl,
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(width: 12),
+
+                  // -- Countdown --
+                  _CountdownDisplay(
+                    hours: hours,
+                    minutes: minutes,
+                    seconds: seconds,
+                    color: nextPrayer.color,
+                    isDark: isDark,
+                  ),
+                ],
+              ),
             ),
           ],
         ),
@@ -204,7 +225,7 @@ class _PrayerCountdownWidgetState
   }
 }
 
-// ── Prayer Icon ───────────────────────────────────────────────────────────────
+// -- Prayer Icon -------------------------------------------------------------
 
 class _PrayerIcon extends StatelessWidget {
   final Color color;
@@ -215,11 +236,18 @@ class _PrayerIcon extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 50,
-      height: 50,
+      width: 52,
+      height: 52,
       decoration: BoxDecoration(
-        color: color.withValues(alpha: isDark ? 0.2 : 0.1),
-        borderRadius: BorderRadius.circular(14),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            color.withValues(alpha: isDark ? 0.25 : 0.15),
+            color.withValues(alpha: isDark ? 0.1 : 0.05),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(
           color: color.withValues(alpha: 0.2),
           width: 0.5,
@@ -234,7 +262,7 @@ class _PrayerIcon extends StatelessWidget {
   }
 }
 
-// ── Countdown Display ─────────────────────────────────────────────────────────
+// -- Countdown Display -------------------------------------------------------
 
 class _CountdownDisplay extends StatelessWidget {
   final int hours;
@@ -256,10 +284,17 @@ class _CountdownDisplay extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: isDark ? 0.15 : 0.07),
-        borderRadius: BorderRadius.circular(14),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            color.withValues(alpha: isDark ? 0.18 : 0.1),
+            color.withValues(alpha: isDark ? 0.08 : 0.04),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: color.withValues(alpha: 0.2),
+          color: color.withValues(alpha: 0.15),
           width: 0.5,
         ),
       ),

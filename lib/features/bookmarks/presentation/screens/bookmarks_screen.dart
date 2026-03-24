@@ -9,8 +9,8 @@ import '../../../../core/theme/app_text_styles.dart';
 import '../../domain/entities/bookmark.dart';
 import '../providers/bookmark_providers.dart';
 
-/// Bookmarks screen with folder tabs, swipe-to-delete,
-/// Arabic ayah preview, and create-folder dialog.
+/// Bookmarks screen with modern design: folder tabs, swipe-to-delete,
+/// color labels, Arabic ayah preview, and create-folder dialog.
 class BookmarksScreen extends ConsumerWidget {
   const BookmarksScreen({super.key});
 
@@ -24,22 +24,49 @@ class BookmarksScreen extends ConsumerWidget {
     final allFolders = ['الكل', ...folders];
 
     return Scaffold(
+      backgroundColor:
+          isDark ? AppColors.backgroundDark : AppColors.backgroundLight,
       appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
         title: Text(
           'الإشارات المرجعية',
-          style: AppTextStyles.arabicHeadline.copyWith(
+          style: AppTextStyles.arabicBody.copyWith(
             color: AppColors.primary,
+            fontWeight: FontWeight.w700,
+            fontSize: 16,
           ),
+          textDirection: TextDirection.rtl,
         ),
+        centerTitle: true,
         actions: [
           IconButton(
-            icon: const Icon(Icons.favorite_outline),
+            icon: Container(
+              width: 34,
+              height: 34,
+              decoration: BoxDecoration(
+                color: AppColors.error.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(Icons.favorite_rounded,
+                  size: 18, color: AppColors.error),
+            ),
             onPressed: () => context.pushNamed(RouteNames.favorites),
             tooltip: 'المفضلة',
           ),
           IconButton(
-            icon: const Icon(Icons.create_new_folder_outlined),
-            onPressed: () => _showCreateFolderDialog(context, ref),
+            icon: Container(
+              width: 34,
+              height: 34,
+              decoration: BoxDecoration(
+                color: AppColors.primary.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(Icons.create_new_folder_outlined,
+                  size: 18, color: AppColors.primary),
+            ),
+            onPressed: () =>
+                _showCreateFolderDialog(context, ref),
             tooltip: 'إنشاء مجلد',
           ),
         ],
@@ -49,23 +76,35 @@ class BookmarksScreen extends ConsumerWidget {
                 child: _FolderTabBar(
                   folders: allFolders,
                   selected: selectedFolder,
-                  onSelect: (f) =>
-                      ref.read(selectedFolderProvider.notifier).state = f,
+                  isDark: isDark,
+                  onSelect: (f) => ref
+                      .read(selectedFolderProvider.notifier)
+                      .state = f,
                 ),
               )
             : null,
       ),
       body: bookmarksAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () =>
+            const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.error_outline, color: AppColors.error, size: 48),
-              const SizedBox(height: 12),
+              Container(
+                width: 56,
+                height: 56,
+                decoration: BoxDecoration(
+                  color: AppColors.error.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: const Icon(Icons.error_outline_rounded,
+                    color: AppColors.error, size: 28),
+              ),
+              const SizedBox(height: 14),
               Text(
                 'حدث خطأ في تحميل الإشارات المرجعية',
-                style: AppTextStyles.arabicBody.copyWith(
+                style: AppTextStyles.arabicCaption.copyWith(
                   color: AppColors.error,
                 ),
                 textDirection: TextDirection.rtl,
@@ -76,10 +115,13 @@ class BookmarksScreen extends ConsumerWidget {
         data: (bookmarks) {
           final filtered = selectedFolder == 'الكل'
               ? bookmarks
-              : bookmarks.where((b) => b.folder == selectedFolder).toList();
+              : bookmarks
+                  .where((b) => b.folder == selectedFolder)
+                  .toList();
 
           if (filtered.isEmpty) {
-            return _EmptyState(isDark: isDark, folder: selectedFolder);
+            return _EmptyState(
+                isDark: isDark, folder: selectedFolder);
           }
 
           return ListView.builder(
@@ -102,16 +144,17 @@ class BookmarksScreen extends ConsumerWidget {
                 onTap: () => context.pushNamed(
                   RouteNames.quranReader,
                   pathParameters: {
-                    'surahNumber': bookmark.surahNumber.toString(),
+                    'surahNumber':
+                        bookmark.surahNumber.toString(),
                   },
                   queryParameters: {
                     'ayah': bookmark.ayahNumber.toString(),
                   },
                 ),
-                onEditNote: () =>
-                    _showEditNoteDialog(context, ref, bookmark),
-                onMoveFolder: () =>
-                    _showMoveFolderDialog(context, ref, bookmark, folders),
+                onEditNote: () => _showEditNoteDialog(
+                    context, ref, bookmark),
+                onMoveFolder: () => _showMoveFolderDialog(
+                    context, ref, bookmark, folders),
               );
             },
           );
@@ -128,9 +171,12 @@ class BookmarksScreen extends ConsumerWidget {
     final result = await showDialog<String>(
       context: context,
       builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20)),
         title: Text(
           'إنشاء مجلد جديد',
-          style: AppTextStyles.arabicBody.copyWith(fontWeight: FontWeight.w700),
+          style: AppTextStyles.arabicBody
+              .copyWith(fontWeight: FontWeight.w700),
           textDirection: TextDirection.rtl,
         ),
         content: TextField(
@@ -141,6 +187,9 @@ class BookmarksScreen extends ConsumerWidget {
             hintText: 'اسم المجلد',
             hintStyle: AppTextStyles.arabicCaption.copyWith(
               color: AppColors.textTertiaryLight,
+            ),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(14),
             ),
           ),
           style: AppTextStyles.arabicBody,
@@ -153,13 +202,16 @@ class BookmarksScreen extends ConsumerWidget {
           ElevatedButton(
             onPressed: () =>
                 Navigator.of(ctx).pop(controller.text.trim()),
+            style: ElevatedButton.styleFrom(
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
+            ),
             child: const Text('إنشاء'),
           ),
         ],
       ),
     );
     if (result != null && result.isNotEmpty) {
-      // Folder is created implicitly when the first bookmark is moved into it.
       if (context.mounted) {
         context.showSnackBar('المجلد "$result" جاهز للاستخدام');
       }
@@ -171,13 +223,17 @@ class BookmarksScreen extends ConsumerWidget {
     WidgetRef ref,
     Bookmark bookmark,
   ) async {
-    final controller = TextEditingController(text: bookmark.note ?? '');
+    final controller =
+        TextEditingController(text: bookmark.note ?? '');
     final result = await showDialog<String>(
       context: context,
       builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20)),
         title: Text(
           'تعديل الملاحظة',
-          style: AppTextStyles.arabicBody.copyWith(fontWeight: FontWeight.w700),
+          style: AppTextStyles.arabicBody
+              .copyWith(fontWeight: FontWeight.w700),
           textDirection: TextDirection.rtl,
         ),
         content: TextField(
@@ -190,6 +246,9 @@ class BookmarksScreen extends ConsumerWidget {
             hintStyle: AppTextStyles.arabicCaption.copyWith(
               color: AppColors.textTertiaryLight,
             ),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(14),
+            ),
           ),
           style: AppTextStyles.arabicBody,
         ),
@@ -201,6 +260,10 @@ class BookmarksScreen extends ConsumerWidget {
           ElevatedButton(
             onPressed: () =>
                 Navigator.of(ctx).pop(controller.text.trim()),
+            style: ElevatedButton.styleFrom(
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
+            ),
             child: const Text('حفظ'),
           ),
         ],
@@ -223,9 +286,12 @@ class BookmarksScreen extends ConsumerWidget {
     final result = await showDialog<String>(
       context: context,
       builder: (ctx) => SimpleDialog(
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20)),
         title: Text(
           'نقل إلى مجلد',
-          style: AppTextStyles.arabicBody.copyWith(fontWeight: FontWeight.w700),
+          style: AppTextStyles.arabicBody
+              .copyWith(fontWeight: FontWeight.w700),
           textDirection: TextDirection.rtl,
         ),
         children: available
@@ -253,16 +319,18 @@ class BookmarksScreen extends ConsumerWidget {
   }
 }
 
-// ── Folder tab bar ────────────────────────────────────────────────────────────
+// ── Folder tab bar ───────────────────────────────────────────────────────────
 
 class _FolderTabBar extends StatelessWidget {
   final List<String> folders;
   final String selected;
+  final bool isDark;
   final ValueChanged<String> onSelect;
 
   const _FolderTabBar({
     required this.folders,
     required this.selected,
+    required this.isDark,
     required this.onSelect,
   });
 
@@ -272,24 +340,51 @@ class _FolderTabBar extends StatelessWidget {
       height: 48,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        padding:
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         itemCount: folders.length,
         separatorBuilder: (_, __) => const SizedBox(width: 8),
         itemBuilder: (context, index) {
           final folder = folders[index];
           final isSelected = folder == selected;
-          return ChoiceChip(
-            label: Text(
-              folder,
-              style: AppTextStyles.arabicCaption.copyWith(
-                color: isSelected ? Colors.white : AppColors.textSecondaryLight,
-                fontWeight:
-                    isSelected ? FontWeight.w700 : FontWeight.normal,
+          return GestureDetector(
+            onTap: () => onSelect(folder),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              padding: const EdgeInsets.symmetric(
+                  horizontal: 16, vertical: 6),
+              decoration: BoxDecoration(
+                color: isSelected
+                    ? AppColors.primary
+                    : isDark
+                        ? AppColors.surfaceVariantDark
+                        : AppColors.surfaceVariantLight,
+                borderRadius: BorderRadius.circular(20),
+                border: isSelected
+                    ? null
+                    : Border.all(
+                        color: isDark
+                            ? AppColors.dividerDark
+                            : AppColors.dividerLight,
+                        width: 0.5,
+                      ),
+              ),
+              child: Center(
+                child: Text(
+                  folder,
+                  style: AppTextStyles.arabicCaption.copyWith(
+                    color: isSelected
+                        ? Colors.white
+                        : isDark
+                            ? AppColors.textSecondaryDark
+                            : AppColors.textSecondaryLight,
+                    fontWeight: isSelected
+                        ? FontWeight.w700
+                        : FontWeight.normal,
+                  ),
+                ),
               ),
             ),
-            selected: isSelected,
-            selectedColor: AppColors.primary,
-            onSelected: (_) => onSelect(folder),
           );
         },
       ),
@@ -297,7 +392,7 @@ class _FolderTabBar extends StatelessWidget {
   }
 }
 
-// ── Bookmark card ─────────────────────────────────────────────────────────────
+// ── Bookmark card ────────────────────────────────────────────────────────────
 
 class _BookmarkCard extends StatelessWidget {
   final Bookmark bookmark;
@@ -327,6 +422,8 @@ class _BookmarkCard extends StatelessWidget {
         return await showDialog<bool>(
           context: context,
           builder: (ctx) => AlertDialog(
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20)),
             title: Text(
               'حذف الإشارة المرجعية',
               style: AppTextStyles.arabicBody
@@ -347,6 +444,8 @@ class _BookmarkCard extends StatelessWidget {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.error,
                   foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
                 ),
                 onPressed: () => Navigator.of(ctx).pop(true),
                 child: const Text('حذف'),
@@ -359,48 +458,78 @@ class _BookmarkCard extends StatelessWidget {
       background: Container(
         alignment: Alignment.centerLeft,
         padding: const EdgeInsets.only(left: 24),
-        color: AppColors.error,
-        child: const Icon(Icons.delete_outline, color: Colors.white),
+        margin: const EdgeInsets.symmetric(
+            horizontal: 16, vertical: 4),
+        decoration: BoxDecoration(
+          color: AppColors.error,
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child:
+            const Icon(Icons.delete_outline, color: Colors.white),
       ),
-      child: Card(
-        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-        elevation: isDark ? 0 : 1,
+      child: Container(
+        margin: const EdgeInsets.symmetric(
+            horizontal: 16, vertical: 5),
+        decoration: BoxDecoration(
+          color: isDark ? AppColors.cardDark : AppColors.cardLight,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: isDark
+                ? AppColors.dividerDark
+                : AppColors.dividerLight,
+            width: 0.5,
+          ),
+        ),
         child: InkWell(
           onTap: onTap,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(20),
           child: Padding(
-            padding: const EdgeInsets.all(14),
+            padding: const EdgeInsets.all(16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // ── Header ──
+                // Header
                 Row(
                   children: [
                     // Colour indicator
                     Container(
                       width: 6,
-                      height: 36,
+                      height: 40,
                       decoration: BoxDecoration(
-                        color: _colorForBookmark(bookmark.color),
+                        color:
+                            _colorForBookmark(bookmark.color),
                         borderRadius: BorderRadius.circular(3),
                       ),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.end,
+                        crossAxisAlignment:
+                            CrossAxisAlignment.end,
                         children: [
                           Text(
                             bookmark.surahName,
-                            style: AppTextStyles.arabicBody.copyWith(
+                            style: AppTextStyles.arabicBody
+                                .copyWith(
                               fontWeight: FontWeight.w700,
+                              color: isDark
+                                  ? AppColors.textPrimaryDark
+                                  : AppColors
+                                      .textPrimaryLight,
                             ),
                             textDirection: TextDirection.rtl,
                           ),
+                          const SizedBox(height: 2),
                           Text(
-                            'آية ${bookmark.ayahNumber}  •  صفحة ${bookmark.page}  •  ${bookmark.folder}',
-                            style: AppTextStyles.arabicCaption.copyWith(
-                              color: AppColors.textTertiaryLight,
+                            'آية ${bookmark.ayahNumber}  ·  صفحة ${bookmark.page}  ·  ${bookmark.folder}',
+                            style: AppTextStyles.arabicCaption
+                                .copyWith(
+                              color: isDark
+                                  ? AppColors
+                                      .textTertiaryDark
+                                  : AppColors
+                                      .textTertiaryLight,
+                              fontSize: 12,
                             ),
                             textDirection: TextDirection.rtl,
                           ),
@@ -412,15 +541,21 @@ class _BookmarkCard extends StatelessWidget {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         IconButton(
-                          constraints: const BoxConstraints(),
+                          constraints:
+                              const BoxConstraints(),
                           padding: const EdgeInsets.all(4),
                           icon: Icon(
                             bookmark.isFavorite
-                                ? Icons.favorite
-                                : Icons.favorite_outline,
+                                ? Icons.favorite_rounded
+                                : Icons
+                                    .favorite_outline_rounded,
                             color: bookmark.isFavorite
                                 ? AppColors.error
-                                : AppColors.textTertiaryLight,
+                                : isDark
+                                    ? AppColors
+                                        .textTertiaryDark
+                                    : AppColors
+                                        .textTertiaryLight,
                             size: 20,
                           ),
                           onPressed: onToggleFavorite,
@@ -428,22 +563,33 @@ class _BookmarkCard extends StatelessWidget {
                         PopupMenuButton<String>(
                           padding: const EdgeInsets.all(4),
                           iconSize: 20,
+                          shape: RoundedRectangleBorder(
+                            borderRadius:
+                                BorderRadius.circular(14),
+                          ),
                           onSelected: (action) {
-                            if (action == 'note') onEditNote();
-                            if (action == 'folder') onMoveFolder();
-                            if (action == 'delete') onDelete();
+                            if (action == 'note') {
+                              onEditNote();
+                            }
+                            if (action == 'folder') {
+                              onMoveFolder();
+                            }
+                            if (action == 'delete') {
+                              onDelete();
+                            }
                           },
                           itemBuilder: (_) => [
                             PopupMenuItem(
                               value: 'note',
                               child: Row(
                                 children: [
-                                  const Icon(Icons.edit_note, size: 18),
+                                  const Icon(
+                                      Icons.edit_note,
+                                      size: 18),
                                   const SizedBox(width: 8),
-                                  Text(
-                                    'تعديل الملاحظة',
-                                    style: AppTextStyles.arabicCaption,
-                                  ),
+                                  Text('تعديل الملاحظة',
+                                      style: AppTextStyles
+                                          .arabicCaption),
                                 ],
                               ),
                             ),
@@ -451,12 +597,13 @@ class _BookmarkCard extends StatelessWidget {
                               value: 'folder',
                               child: Row(
                                 children: [
-                                  const Icon(Icons.folder_open, size: 18),
+                                  const Icon(
+                                      Icons.folder_open,
+                                      size: 18),
                                   const SizedBox(width: 8),
-                                  Text(
-                                    'نقل إلى مجلد',
-                                    style: AppTextStyles.arabicCaption,
-                                  ),
+                                  Text('نقل إلى مجلد',
+                                      style: AppTextStyles
+                                          .arabicCaption),
                                 ],
                               ),
                             ),
@@ -464,17 +611,18 @@ class _BookmarkCard extends StatelessWidget {
                               value: 'delete',
                               child: Row(
                                 children: [
-                                  Icon(
+                                  const Icon(
                                     Icons.delete_outline,
                                     size: 18,
                                     color: AppColors.error,
                                   ),
                                   const SizedBox(width: 8),
-                                  Text(
-                                    'حذف',
-                                    style: AppTextStyles.arabicCaption
-                                        .copyWith(color: AppColors.error),
-                                  ),
+                                  Text('حذف',
+                                      style: AppTextStyles
+                                          .arabicCaption
+                                          .copyWith(
+                                              color: AppColors
+                                                  .error)),
                                 ],
                               ),
                             ),
@@ -484,19 +632,19 @@ class _BookmarkCard extends StatelessWidget {
                     ),
                   ],
                 ),
-                const SizedBox(height: 10),
+                const SizedBox(height: 12),
 
-                // ── Ayah text preview ──
+                // Ayah text preview
                 Container(
                   padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 10,
+                    horizontal: 14,
+                    vertical: 12,
                   ),
                   decoration: BoxDecoration(
                     color: isDark
                         ? AppColors.quranPageBackgroundDark
                         : AppColors.quranPageBackground,
-                    borderRadius: BorderRadius.circular(10),
+                    borderRadius: BorderRadius.circular(14),
                   ),
                   child: Text(
                     bookmark.ayahText,
@@ -513,40 +661,41 @@ class _BookmarkCard extends StatelessWidget {
                   ),
                 ),
 
-                // ── Note (if present) ──
-                if (bookmark.note != null && bookmark.note!.isNotEmpty) ...[
-                  const SizedBox(height: 8),
+                // Note
+                if (bookmark.note != null &&
+                    bookmark.note!.isNotEmpty) ...[
+                  const SizedBox(height: 10),
                   Container(
                     padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
+                      horizontal: 12,
                       vertical: 8,
                     ),
                     decoration: BoxDecoration(
                       color: isDark
                           ? AppColors.surfaceVariantDark
                           : AppColors.surfaceVariantLight,
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(
-                        color: isDark
-                            ? AppColors.borderDark
-                            : AppColors.borderLight,
-                      ),
+                      borderRadius: BorderRadius.circular(12),
                     ),
                     child: Row(
                       children: [
-                        const Icon(
-                          Icons.notes,
+                        Icon(
+                          Icons.notes_rounded,
                           size: 14,
-                          color: AppColors.textTertiaryLight,
+                          color: isDark
+                              ? AppColors.textTertiaryDark
+                              : AppColors.textTertiaryLight,
                         ),
                         const SizedBox(width: 6),
                         Expanded(
                           child: Text(
                             bookmark.note!,
-                            style: AppTextStyles.bodySmall.copyWith(
+                            style: AppTextStyles.bodySmall
+                                .copyWith(
                               color: isDark
-                                  ? AppColors.textSecondaryDark
-                                  : AppColors.textSecondaryLight,
+                                  ? AppColors
+                                      .textSecondaryDark
+                                  : AppColors
+                                      .textSecondaryLight,
                             ),
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
@@ -581,7 +730,7 @@ class _BookmarkCard extends StatelessWidget {
   }
 }
 
-// ── Empty state ───────────────────────────────────────────────────────────────
+// ── Empty state ──────────────────────────────────────────────────────────────
 
 class _EmptyState extends StatelessWidget {
   final bool isDark;
@@ -593,14 +742,28 @@ class _EmptyState extends StatelessWidget {
   Widget build(BuildContext context) {
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(32),
+        padding: const EdgeInsets.all(40),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              Icons.bookmark_outline,
-              size: 72,
-              color: AppColors.textTertiaryLight.withValues(alpha: 0.4),
+            Container(
+              width: 80,
+              height: 80,
+              decoration: BoxDecoration(
+                color: (isDark
+                        ? AppColors.textTertiaryDark
+                        : AppColors.textTertiaryLight)
+                    .withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(24),
+              ),
+              child: Icon(
+                Icons.bookmark_outline_rounded,
+                size: 40,
+                color: (isDark
+                        ? AppColors.textTertiaryDark
+                        : AppColors.textTertiaryLight)
+                    .withValues(alpha: 0.4),
+              ),
             ),
             const SizedBox(height: 20),
             Text(
@@ -620,7 +783,9 @@ class _EmptyState extends StatelessWidget {
             Text(
               'أضف إشارات مرجعية أثناء القراءة للوصول السريع',
               style: AppTextStyles.arabicCaption.copyWith(
-                color: AppColors.textTertiaryLight,
+                color: isDark
+                    ? AppColors.textTertiaryDark
+                    : AppColors.textTertiaryLight,
               ),
               textDirection: TextDirection.rtl,
               textAlign: TextAlign.center,

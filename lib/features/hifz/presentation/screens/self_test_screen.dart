@@ -8,9 +8,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_text_styles.dart';
 import '../providers/hifz_providers.dart';
 
-// ─────────────────────────────────────────────
-// Data Types
-// ─────────────────────────────────────────────
+// ── Data Types ───────────────────────────────────────────────────────────────
 
 class _TestItem {
   final String prompt;
@@ -28,14 +26,10 @@ class _TestItem {
 
 enum _AnswerResult { correct, incorrect, skipped }
 
-// ─────────────────────────────────────────────
-// Self-Test Screen
-// ─────────────────────────────────────────────
+// ── Self-Test Screen ─────────────────────────────────────────────────────────
 
-/// Self-test screen for reviewing memorized ayahs.
-///
+/// Self-test screen for reviewing memorized ayahs with modern design.
 /// Shows the beginning of an ayah, user recites, then reveals to verify.
-/// Tracks score, repeats failed ayahs, and logs the session.
 class SelfTestScreen extends ConsumerStatefulWidget {
   const SelfTestScreen({super.key});
 
@@ -49,14 +43,13 @@ class _SelfTestScreenState extends ConsumerState<SelfTestScreen>
   int _currentIndex = 0;
   int _correctCount = 0;
   int _incorrectCount = 0;
-  bool _isPlaying = false; // simulated audio state
+  bool _isPlaying = false;
   bool _isFinished = false;
   int _elapsedSeconds = 0;
   Timer? _timer;
   late AnimationController _revealController;
   late Animation<double> _revealAnimation;
 
-  // Failed items to repeat
   final List<int> _failedIndices = [];
   bool _inRepeatMode = false;
   List<int> _repeatQueue = [];
@@ -139,7 +132,6 @@ class _SelfTestScreenState extends ConsumerState<SelfTestScreen>
 
   void _toggleAudio() {
     setState(() => _isPlaying = !_isPlaying);
-    // In production: trigger text-to-speech or audio player
     if (_isPlaying) {
       Future.delayed(const Duration(seconds: 3), () {
         if (mounted) setState(() => _isPlaying = false);
@@ -167,14 +159,12 @@ class _SelfTestScreenState extends ConsumerState<SelfTestScreen>
     if (nextIndex >= _currentItems.length) {
       _timer?.cancel();
       if (!_inRepeatMode && _failedIndices.isNotEmpty) {
-        // Offer to repeat failed
         setState(() {
           _isRevealed = false;
           _currentIndex = 0;
           _isFinished = true;
         });
       } else {
-        // Log session
         ref.read(hifzProvider.notifier).logSession(
               ayahsStudied: 0,
               ayahsRevised: _testItems.length,
@@ -248,23 +238,36 @@ class _SelfTestScreenState extends ConsumerState<SelfTestScreen>
     final item = items[_currentIndex];
 
     return Scaffold(
+      backgroundColor:
+          isDark ? AppColors.backgroundDark : AppColors.backgroundLight,
       appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
         title: Text(
           _inRepeatMode ? 'إعادة الخطأ' : 'اختبر نفسك',
-          style: AppTextStyles.arabicHeadline.copyWith(color: AppColors.primary),
+          style: AppTextStyles.arabicBody.copyWith(
+            color: AppColors.primary,
+            fontWeight: FontWeight.w700,
+            fontSize: 16,
+          ),
+          textDirection: TextDirection.rtl,
         ),
+        centerTitle: true,
         actions: [
-          // Score counter
           Padding(
             padding: const EdgeInsets.only(left: 12, right: 4),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
                 _ScoreBadge(
-                    count: _correctCount, color: AppColors.success, icon: Icons.check),
+                    count: _correctCount,
+                    color: AppColors.success,
+                    icon: Icons.check_rounded),
                 const SizedBox(width: 6),
                 _ScoreBadge(
-                    count: _incorrectCount, color: AppColors.error, icon: Icons.close),
+                    count: _incorrectCount,
+                    color: AppColors.error,
+                    icon: Icons.close_rounded),
               ],
             ),
           ),
@@ -277,56 +280,76 @@ class _SelfTestScreenState extends ConsumerState<SelfTestScreen>
           children: [
             // Progress bar
             ClipRRect(
-              borderRadius: BorderRadius.circular(6),
+              borderRadius: BorderRadius.circular(4),
               child: LinearProgressIndicator(
                 value: (_currentIndex + 1) / items.length,
                 backgroundColor:
-                    AppColors.primary.withValues(alpha: 0.12),
+                    AppColors.primary.withValues(alpha: 0.1),
                 valueColor:
                     const AlwaysStoppedAnimation(AppColors.primary),
-                minHeight: 8,
+                minHeight: 6,
               ),
             ),
-            const SizedBox(height: 6),
+            const SizedBox(height: 8),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
                   '${_currentIndex + 1} / ${items.length}',
-                  style: AppTextStyles.labelSmall
-                      .copyWith(color: AppColors.textTertiaryLight),
+                  style: AppTextStyles.labelSmall.copyWith(
+                    color: isDark
+                        ? AppColors.textTertiaryDark
+                        : AppColors.textTertiaryLight,
+                  ),
                 ),
-                Text(
-                  '${_elapsedSeconds ~/ 60}:${(_elapsedSeconds % 60).toString().padLeft(2, '0')}',
-                  style: AppTextStyles.labelSmall
-                      .copyWith(color: AppColors.textTertiaryLight),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: isDark
+                        ? AppColors.surfaceVariantDark
+                        : AppColors.surfaceVariantLight,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    '${_elapsedSeconds ~/ 60}:${(_elapsedSeconds % 60).toString().padLeft(2, '0')}',
+                    style: AppTextStyles.labelSmall.copyWith(
+                      color: isDark
+                          ? AppColors.textTertiaryDark
+                          : AppColors.textTertiaryLight,
+                    ),
+                  ),
                 ),
               ],
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 20),
 
             // Instruction
             Text(
               'أكمل الآية التالية:',
-              style: AppTextStyles.arabicBody.copyWith(
-                  color: AppColors.textSecondaryLight),
+              style: AppTextStyles.arabicCaption.copyWith(
+                color: isDark
+                    ? AppColors.textSecondaryDark
+                    : AppColors.textSecondaryLight,
+              ),
               textDirection: TextDirection.rtl,
             ),
             const SizedBox(height: 12),
 
             // Prompt card
             Container(
-              padding: const EdgeInsets.all(20),
+              padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
                 color: isDark
                     ? AppColors.quranPageBackgroundDark
                     : AppColors.quranPageBackground,
-                borderRadius: BorderRadius.circular(20),
+                borderRadius: BorderRadius.circular(24),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.06),
-                    blurRadius: 10,
-                    offset: const Offset(0, 3),
+                    color: Colors.black
+                        .withValues(alpha: isDark ? 0.15 : 0.05),
+                    blurRadius: 16,
+                    offset: const Offset(0, 4),
                   ),
                 ],
               ),
@@ -344,26 +367,33 @@ class _SelfTestScreenState extends ConsumerState<SelfTestScreen>
                     textDirection: TextDirection.rtl,
                   ),
                   if (item.hint != null) ...[
-                    const SizedBox(height: 8),
-                    Text(
-                      '💡 ${item.hint}',
-                      style: AppTextStyles.arabicCaption.copyWith(
-                        color: AppColors.textTertiaryLight,
-                        fontStyle: FontStyle.italic,
+                    const SizedBox(height: 10),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: AppColors.info.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(12),
                       ),
-                      textDirection: TextDirection.rtl,
+                      child: Text(
+                        item.hint!,
+                        style: AppTextStyles.arabicCaption.copyWith(
+                          color: AppColors.info,
+                          fontSize: 12,
+                        ),
+                        textDirection: TextDirection.rtl,
+                      ),
                     ),
                   ],
                 ],
               ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 14),
 
-            // Audio play button (simulated)
+            // Audio play button
             Center(
-              child: InkWell(
+              child: GestureDetector(
                 onTap: _toggleAudio,
-                borderRadius: BorderRadius.circular(40),
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 200),
                   padding: const EdgeInsets.symmetric(
@@ -371,10 +401,13 @@ class _SelfTestScreenState extends ConsumerState<SelfTestScreen>
                   decoration: BoxDecoration(
                     color: _isPlaying
                         ? AppColors.primary.withValues(alpha: 0.12)
-                        : Colors.transparent,
+                        : isDark
+                            ? AppColors.surfaceVariantDark
+                            : AppColors.surfaceVariantLight,
                     borderRadius: BorderRadius.circular(20),
                     border: Border.all(
-                      color: AppColors.primary.withValues(alpha: 0.3),
+                      color:
+                          AppColors.primary.withValues(alpha: 0.25),
                     ),
                   ),
                   child: Row(
@@ -413,10 +446,16 @@ class _SelfTestScreenState extends ConsumerState<SelfTestScreen>
                   child: Container(
                     padding: const EdgeInsets.all(20),
                     decoration: BoxDecoration(
-                      color: AppColors.primary.withValues(alpha: 0.06),
-                      borderRadius: BorderRadius.circular(16),
+                      gradient: LinearGradient(
+                        colors: [
+                          AppColors.primary.withValues(alpha: 0.08),
+                          AppColors.primary.withValues(alpha: 0.03),
+                        ],
+                      ),
+                      borderRadius: BorderRadius.circular(20),
                       border: Border.all(
-                        color: AppColors.primary.withValues(alpha: 0.3),
+                        color:
+                            AppColors.primary.withValues(alpha: 0.25),
                       ),
                     ),
                     child: Column(
@@ -434,7 +473,9 @@ class _SelfTestScreenState extends ConsumerState<SelfTestScreen>
                         Text(
                           item.reference,
                           style: AppTextStyles.arabicCaption.copyWith(
-                            color: AppColors.textTertiaryLight,
+                            color: isDark
+                                ? AppColors.textTertiaryDark
+                                : AppColors.textTertiaryLight,
                           ),
                           textDirection: TextDirection.rtl,
                         ),
@@ -448,27 +489,60 @@ class _SelfTestScreenState extends ConsumerState<SelfTestScreen>
 
             // Action buttons
             if (!_isRevealed) ...[
-              ElevatedButton.icon(
-                onPressed: _reveal,
-                icon: const Icon(Icons.visibility_outlined, color: Colors.white),
-                label: Text(
-                  'كشف الإجابة',
-                  style: AppTextStyles.arabicBody.copyWith(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w700,
+              GestureDetector(
+                onTap: _reveal,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [
+                        AppColors.primary,
+                        AppColors.primaryLight
+                      ],
+                    ),
+                    borderRadius: BorderRadius.circular(18),
+                    boxShadow: [
+                      BoxShadow(
+                        color:
+                            AppColors.primary.withValues(alpha: 0.3),
+                        blurRadius: 12,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
                   ),
-                ),
-                style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        'كشف الإجابة',
+                        style: AppTextStyles.arabicBody.copyWith(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      const Icon(Icons.visibility_outlined,
+                          color: Colors.white, size: 22),
+                    ],
+                  ),
                 ),
               ),
               const SizedBox(height: 10),
               OutlinedButton(
-                onPressed: () => _markResult(_AnswerResult.skipped),
+                onPressed: () =>
+                    _markResult(_AnswerResult.skipped),
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(18),
+                  ),
+                ),
                 child: Text(
                   'تخطي',
                   style: AppTextStyles.arabicCaption.copyWith(
-                    color: AppColors.textTertiaryLight,
+                    color: isDark
+                        ? AppColors.textTertiaryDark
+                        : AppColors.textTertiaryLight,
                   ),
                 ),
               ),
@@ -480,7 +554,8 @@ class _SelfTestScreenState extends ConsumerState<SelfTestScreen>
                       label: 'لم أتذكر',
                       icon: Icons.close_rounded,
                       color: AppColors.error,
-                      onTap: () => _markResult(_AnswerResult.incorrect),
+                      onTap: () =>
+                          _markResult(_AnswerResult.incorrect),
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -490,7 +565,8 @@ class _SelfTestScreenState extends ConsumerState<SelfTestScreen>
                       icon: Icons.check_rounded,
                       color: AppColors.success,
                       filled: true,
-                      onTap: () => _markResult(_AnswerResult.correct),
+                      onTap: () =>
+                          _markResult(_AnswerResult.correct),
                     ),
                   ),
                 ],
@@ -505,22 +581,23 @@ class _SelfTestScreenState extends ConsumerState<SelfTestScreen>
   }
 }
 
-// ─────────────────────────────────────────────
-// Score Badge
-// ─────────────────────────────────────────────
+// ── Score Badge ──────────────────────────────────────────────────────────────
 
 class _ScoreBadge extends StatelessWidget {
   final int count;
   final Color color;
   final IconData icon;
 
-  const _ScoreBadge(
-      {required this.count, required this.color, required this.icon});
+  const _ScoreBadge({
+    required this.count,
+    required this.color,
+    required this.icon,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12),
@@ -529,7 +606,7 @@ class _ScoreBadge extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(icon, color: color, size: 14),
-          const SizedBox(width: 3),
+          const SizedBox(width: 4),
           Text(
             '$count',
             style: AppTextStyles.labelSmall.copyWith(
@@ -543,9 +620,7 @@ class _ScoreBadge extends StatelessWidget {
   }
 }
 
-// ─────────────────────────────────────────────
-// Answer Button
-// ─────────────────────────────────────────────
+// ── Answer Button ────────────────────────────────────────────────────────────
 
 class _AnswerButton extends StatelessWidget {
   final String label;
@@ -565,19 +640,35 @@ class _AnswerButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (filled) {
-      return ElevatedButton.icon(
-        onPressed: onTap,
-        icon: Icon(icon, color: Colors.white, size: 20),
-        label: Text(
-          label,
-          style: AppTextStyles.arabicCaption.copyWith(
-            color: Colors.white,
-            fontWeight: FontWeight.w700,
+      return GestureDetector(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          decoration: BoxDecoration(
+            color: color,
+            borderRadius: BorderRadius.circular(18),
+            boxShadow: [
+              BoxShadow(
+                color: color.withValues(alpha: 0.3),
+                blurRadius: 10,
+                offset: const Offset(0, 3),
+              ),
+            ],
           ),
-        ),
-        style: ElevatedButton.styleFrom(
-          backgroundColor: color,
-          padding: const EdgeInsets.symmetric(vertical: 14),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                label,
+                style: AppTextStyles.arabicCaption.copyWith(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(width: 6),
+              Icon(icon, color: Colors.white, size: 20),
+            ],
+          ),
         ),
       );
     }
@@ -590,15 +681,16 @@ class _AnswerButton extends StatelessWidget {
       ),
       style: OutlinedButton.styleFrom(
         side: BorderSide(color: color),
-        padding: const EdgeInsets.symmetric(vertical: 14),
+        padding: const EdgeInsets.symmetric(vertical: 16),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(18),
+        ),
       ),
     );
   }
 }
 
-// ─────────────────────────────────────────────
-// Results Screen
-// ─────────────────────────────────────────────
+// ── Results Screen ───────────────────────────────────────────────────────────
 
 class _ResultsScreen extends StatelessWidget {
   final int correct;
@@ -625,11 +717,11 @@ class _ResultsScreen extends StatelessWidget {
         total > 0 ? (correct / total * 100).round() : 0;
     final isDark = context.isDarkMode;
 
-    final (emoji, message, color) = switch (percentage) {
-      >= 90 => ('🌟', 'ممتاز! حفظك رائع', AppColors.secondary),
-      >= 70 => ('✨', 'أحسنت! استمر في المراجعة', AppColors.primary),
-      >= 50 => ('💪', 'جيد، كرر المراجعة', AppColors.info),
-      _ => ('🔄', 'لا بأس، تدرب أكثر', AppColors.warning),
+    final (message, color) = switch (percentage) {
+      >= 90 => ('ممتاز! حفظك رائع', AppColors.secondary),
+      >= 70 => ('أحسنت! استمر في المراجعة', AppColors.primary),
+      >= 50 => ('جيد، كرر المراجعة', AppColors.info),
+      _ => ('لا بأس، تدرب أكثر', AppColors.warning),
     };
 
     final mins = elapsedSeconds ~/ 60;
@@ -638,30 +730,43 @@ class _ResultsScreen extends StatelessWidget {
         '${mins.toString().padLeft(2, '0')}:${secs.toString().padLeft(2, '0')}';
 
     return Scaffold(
+      backgroundColor:
+          isDark ? AppColors.backgroundDark : AppColors.backgroundLight,
       appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
         title: Text(
           'نتيجة الاختبار',
-          style: AppTextStyles.arabicHeadline.copyWith(color: AppColors.primary),
+          style: AppTextStyles.arabicBody.copyWith(
+            color: AppColors.primary,
+            fontWeight: FontWeight.w700,
+            fontSize: 16,
+          ),
+          textDirection: TextDirection.rtl,
         ),
+        centerTitle: true,
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const SizedBox(height: 16),
-            // Emoji
-            Text(emoji, style: const TextStyle(fontSize: 64)),
             const SizedBox(height: 16),
 
             // Score circle
             Container(
-              width: 140,
-              height: 140,
+              width: 160,
+              height: 160,
               decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.1),
                 shape: BoxShape.circle,
-                border: Border.all(color: color, width: 3),
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    color.withValues(alpha: 0.15),
+                    color.withValues(alpha: 0.05),
+                  ],
+                ),
+                border: Border.all(color: color, width: 4),
               ),
               alignment: Alignment.center,
               child: Column(
@@ -669,15 +774,18 @@ class _ResultsScreen extends StatelessWidget {
                 children: [
                   Text(
                     '$percentage%',
-                    style: AppTextStyles.displayMedium.copyWith(
+                    style: AppTextStyles.displayLarge.copyWith(
                       color: color,
                       fontWeight: FontWeight.w800,
                     ),
                   ),
                   Text(
                     '$correct / $total',
-                    style: AppTextStyles.arabicCaption
-                        .copyWith(color: AppColors.textTertiaryLight),
+                    style: AppTextStyles.arabicCaption.copyWith(
+                      color: isDark
+                          ? AppColors.textTertiaryDark
+                          : AppColors.textTertiaryLight,
+                    ),
                     textDirection: TextDirection.rtl,
                   ),
                 ],
@@ -688,7 +796,8 @@ class _ResultsScreen extends StatelessWidget {
             // Message
             Text(
               message,
-              style: AppTextStyles.arabicHeadline.copyWith(color: color),
+              style: AppTextStyles.arabicHeadline
+                  .copyWith(color: color),
               textDirection: TextDirection.rtl,
               textAlign: TextAlign.center,
             ),
@@ -696,33 +805,47 @@ class _ResultsScreen extends StatelessWidget {
 
             // Stats row
             Container(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(18),
               decoration: BoxDecoration(
-                color: isDark ? AppColors.cardDark : AppColors.cardLight,
-                borderRadius: BorderRadius.circular(16),
+                color:
+                    isDark ? AppColors.cardDark : AppColors.cardLight,
+                borderRadius: BorderRadius.circular(20),
                 border: Border.all(
-                  color: isDark ? AppColors.dividerDark : AppColors.dividerLight,
+                  color: isDark
+                      ? AppColors.dividerDark
+                      : AppColors.dividerLight,
+                  width: 0.5,
                 ),
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
                   _ResultStat(
-                    icon: Icons.check_circle,
+                    icon: Icons.check_circle_rounded,
                     color: AppColors.success,
                     value: '$correct',
                     label: 'صحيح',
                   ),
                   Container(
-                      width: 1, height: 40, color: AppColors.dividerLight),
+                    width: 1,
+                    height: 40,
+                    color: isDark
+                        ? AppColors.dividerDark
+                        : AppColors.dividerLight,
+                  ),
                   _ResultStat(
-                    icon: Icons.cancel,
+                    icon: Icons.cancel_rounded,
                     color: AppColors.error,
                     value: '$incorrect',
                     label: 'خطأ',
                   ),
                   Container(
-                      width: 1, height: 40, color: AppColors.dividerLight),
+                    width: 1,
+                    height: 40,
+                    color: isDark
+                        ? AppColors.dividerDark
+                        : AppColors.dividerLight,
+                  ),
                   _ResultStat(
                     icon: Icons.timer_outlined,
                     color: AppColors.info,
@@ -734,36 +857,56 @@ class _ResultsScreen extends StatelessWidget {
             ),
             const SizedBox(height: 28),
 
-            // Repeat failed button
+            // Repeat failed
             if (failedCount > 0 && onRepeatFailed != null) ...[
               SizedBox(
                 width: double.infinity,
-                child: ElevatedButton.icon(
-                  onPressed: onRepeatFailed,
-                  icon: const Icon(Icons.replay, color: Colors.white),
-                  label: Text(
-                    'كرر الآيات الخاطئة ($failedCount)',
-                    style: AppTextStyles.arabicBody.copyWith(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w700,
+                child: GestureDetector(
+                  onTap: onRepeatFailed,
+                  child: Container(
+                    padding:
+                        const EdgeInsets.symmetric(vertical: 16),
+                    decoration: BoxDecoration(
+                      color: AppColors.warning,
+                      borderRadius: BorderRadius.circular(18),
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppColors.warning
+                              .withValues(alpha: 0.3),
+                          blurRadius: 10,
+                          offset: const Offset(0, 3),
+                        ),
+                      ],
                     ),
-                    textDirection: TextDirection.rtl,
-                  ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.warning,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          'كرر الآيات الخاطئة ($failedCount)',
+                          style: AppTextStyles.arabicBody.copyWith(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w700,
+                          ),
+                          textDirection: TextDirection.rtl,
+                        ),
+                        const SizedBox(width: 8),
+                        const Icon(Icons.replay_rounded,
+                            color: Colors.white, size: 22),
+                      ],
+                    ),
                   ),
                 ),
               ),
               const SizedBox(height: 10),
             ],
 
-            // Restart button
+            // Restart
             SizedBox(
               width: double.infinity,
               child: OutlinedButton.icon(
                 onPressed: onRestart,
-                icon: const Icon(Icons.refresh, color: AppColors.primary),
+                icon: const Icon(Icons.refresh_rounded,
+                    color: AppColors.primary),
                 label: Text(
                   'إعادة الاختبار',
                   style: AppTextStyles.arabicBody.copyWith(
@@ -772,7 +915,11 @@ class _ResultsScreen extends StatelessWidget {
                   ),
                 ),
                 style: OutlinedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  padding:
+                      const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(18),
+                  ),
                 ),
               ),
             ),
@@ -801,8 +948,16 @@ class _ResultStat extends StatelessWidget {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(icon, color: color, size: 20),
-        const SizedBox(height: 4),
+        Container(
+          width: 32,
+          height: 32,
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Icon(icon, color: color, size: 18),
+        ),
+        const SizedBox(height: 6),
         Text(
           value,
           style: AppTextStyles.headlineSmall.copyWith(
@@ -812,8 +967,10 @@ class _ResultStat extends StatelessWidget {
         ),
         Text(
           label,
-          style: AppTextStyles.arabicCaption
-              .copyWith(color: AppColors.textTertiaryLight, fontSize: 12),
+          style: AppTextStyles.arabicCaption.copyWith(
+            color: AppColors.textTertiaryLight,
+            fontSize: 12,
+          ),
           textDirection: TextDirection.rtl,
         ),
       ],

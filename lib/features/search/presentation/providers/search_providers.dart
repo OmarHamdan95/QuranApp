@@ -10,9 +10,10 @@ import '../../domain/repositories/search_repository.dart';
 // ── Repository provider ───────────────────────────────────────────────────────
 
 /// Provides the [SearchRepository] implementation.
-final searchRepositoryProvider = Provider<SearchRepository>((ref) {
+final searchRepositoryProvider = FutureProvider<SearchRepository>((ref) async {
+  final quranRepository = await ref.watch(quranRepositoryProvider.future);
   return SearchRepositoryImpl(
-    quranRepository: ref.watch(quranRepositoryProvider),
+    quranRepository: quranRepository,
     isarService: IsarService.instance,
   );
 });
@@ -30,24 +31,27 @@ final searchFilterProvider = StateProvider<SearchFilter>(
 // ── Recent searches ───────────────────────────────────────────────────────────
 
 class RecentSearchesNotifier extends StateNotifier<List<String>> {
-  final SearchRepository _repository;
+  final SearchRepository? _repository;
 
-  RecentSearchesNotifier(this._repository) : super([]) {
+  RecentSearchesNotifier(SearchRepository repository) : _repository = repository, super([]) {
     _load();
   }
 
+  RecentSearchesNotifier._placeholder() : _repository = null, super([]);
+
   Future<void> _load() async {
+    if (_repository == null) return;
     state = await _repository.getRecentSearches();
   }
 
   Future<void> addSearch(String query) async {
-    if (query.trim().isEmpty) return;
+    if (query.trim().isEmpty || _repository == null) return;
     await _repository.saveRecentSearch(query.trim());
     await _load();
   }
 
   Future<void> clearAll() async {
-    await _repository.clearRecentSearches();
+    await _repository?.clearRecentSearches();
     state = [];
   }
 
@@ -59,7 +63,11 @@ class RecentSearchesNotifier extends StateNotifier<List<String>> {
 /// Manages recent search history.
 final recentSearchesProvider =
     StateNotifierProvider<RecentSearchesNotifier, List<String>>(
-  (ref) => RecentSearchesNotifier(ref.watch(searchRepositoryProvider)),
+  (ref) {
+    final repo = ref.watch(searchRepositoryProvider).valueOrNull;
+    if (repo == null) return RecentSearchesNotifier._placeholder();
+    return RecentSearchesNotifier(repo);
+  },
 );
 
 // ── Debounced search results ──────────────────────────────────────────────────
@@ -71,7 +79,7 @@ final searchResultsProvider = FutureProvider<List<Ayah>>((ref) async {
 
   if (query.trim().isEmpty) return [];
 
-  final repository = ref.watch(searchRepositoryProvider);
+  final repository = await ref.watch(searchRepositoryProvider.future);
   final result = await repository.searchAyahs(
     query,
     filter: filter.hasActiveFilters ? filter : null,
@@ -88,7 +96,7 @@ final surahSearchResultsProvider = FutureProvider<List<Surah>>((ref) async {
   final query = ref.watch(searchQueryProvider);
   if (query.trim().isEmpty) return [];
 
-  final repository = ref.watch(searchRepositoryProvider);
+  final repository = await ref.watch(searchRepositoryProvider.future);
   final result = await repository.searchSurahs(query);
 
   return result.fold(

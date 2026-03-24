@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -13,125 +14,105 @@ import '../widgets/prayer_countdown_widget.dart';
 /// Home screen / dashboard of the Quran App.
 ///
 /// Displays:
-/// - Personalised greeting
+/// - Gradient header with greeting and date
+/// - Last-read resume card
 /// - Daily Ayah card
 /// - Prayer countdown
-/// - Last-read resume card
 /// - Quick-access feature grid
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
     final isDark = context.isDarkMode;
     final now = DateTime.now();
     final greeting = _greeting(now.hour);
 
     return Scaffold(
-      body: CustomScrollView(
+      body: SingleChildScrollView(
         physics: const BouncingScrollPhysics(),
-        slivers: [
-          // ── App Bar ───────────────────────────────────────────────
-          SliverAppBar(
-            expandedHeight: 100,
-            floating: true,
-            snap: true,
-            elevation: 0,
-            backgroundColor:
-                isDark ? AppColors.backgroundDark : AppColors.backgroundLight,
-            flexibleSpace: FlexibleSpaceBar(
-              titlePadding:
-                  const EdgeInsets.only(left: 20, right: 20, bottom: 14),
-              title: Row(
-                crossAxisAlignment: CrossAxisAlignment.end,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // -- Gradient Header --
+            _GradientHeader(
+              greeting: greeting,
+              isDark: isDark,
+              colorScheme: colorScheme,
+              onSearchTap: () => context.pushNamed(RouteNames.search),
+              onSettingsTap: () => context.pushNamed(RouteNames.settings),
+            ).animate().fadeIn(duration: 500.ms).slideY(
+                  begin: -0.1,
+                  end: 0,
+                  duration: 500.ms,
+                  curve: Curves.easeOut,
+                ),
+
+            const SizedBox(height: 8),
+
+            // -- Last Read Card --
+            const LastReadCard()
+                .animate()
+                .fadeIn(delay: 150.ms, duration: 450.ms)
+                .slideX(begin: 0.05, end: 0, duration: 450.ms),
+
+            // -- Daily Ayah --
+            const DailyAyahCard()
+                .animate()
+                .fadeIn(delay: 250.ms, duration: 450.ms)
+                .slideY(begin: 0.05, end: 0, duration: 450.ms),
+
+            // -- Prayer Countdown --
+            const PrayerCountdownWidget()
+                .animate()
+                .fadeIn(delay: 350.ms, duration: 450.ms)
+                .slideX(begin: -0.05, end: 0, duration: 450.ms),
+
+            const SizedBox(height: 24),
+
+            // -- Quick Actions Section Header --
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Row(
                 children: [
-                  Expanded(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          greeting,
-                          style: AppTextStyles.bodySmall.copyWith(
-                            color: isDark
-                                ? AppColors.textTertiaryDark
-                                : AppColors.textTertiaryLight,
-                          ),
-                        ),
-                        Text(
-                          'القرآن الكريم',
-                          style: AppTextStyles.arabicHeadline.copyWith(
-                            color: AppColors.primary,
-                            fontSize: 22,
-                          ),
-                        ),
-                      ],
+                  Container(
+                    width: 4,
+                    height: 20,
+                    decoration: BoxDecoration(
+                      color: colorScheme.primary,
+                      borderRadius: BorderRadius.circular(2),
                     ),
+                  ),
+                  const SizedBox(width: 10),
+                  Text(
+                    'الوصول السريع',
+                    style: AppTextStyles.arabicBody.copyWith(
+                      fontWeight: FontWeight.w800,
+                      color: colorScheme.onSurface,
+                      fontSize: 17,
+                    ),
+                    textDirection: TextDirection.rtl,
                   ),
                 ],
               ),
-            ),
-            actions: [
-              IconButton(
-                icon: const Icon(Icons.search_rounded),
-                tooltip: 'بحث',
-                onPressed: () => context.pushNamed(RouteNames.search),
-              ),
-              IconButton(
-                icon: const Icon(Icons.settings_outlined),
-                tooltip: 'الإعدادات',
-                onPressed: () => context.pushNamed(RouteNames.settings),
-              ),
-              const SizedBox(width: 4),
-            ],
-          ),
+            )
+                .animate()
+                .fadeIn(delay: 450.ms, duration: 400.ms),
 
-          // ── Content ────────────────────────────────────────────────
-          SliverToBoxAdapter(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const SizedBox(height: 4),
+            const SizedBox(height: 14),
 
-                // Daily Ayah
-                const DailyAyahCard(),
+            // -- Quick Access Grid --
+            _QuickAccessGrid()
+                .animate()
+                .fadeIn(delay: 500.ms, duration: 450.ms)
+                .slideY(begin: 0.08, end: 0, duration: 450.ms),
 
-                // Prayer Countdown
-                const PrayerCountdownWidget(),
-
-                // Last Read
-                const LastReadCard(),
-
-                const SizedBox(height: 20),
-
-                // Quick Actions
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  child: Row(
-                    children: [
-                      Text(
-                        'الوصول السريع',
-                        style: AppTextStyles.arabicBody.copyWith(
-                          fontWeight: FontWeight.w800,
-                          color: isDark
-                              ? AppColors.textPrimaryDark
-                              : AppColors.textPrimaryLight,
-                          fontSize: 16,
-                        ),
-                        textDirection: TextDirection.rtl,
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 12),
-
-                _QuickAccessGrid(),
-
-                const SizedBox(height: 100),
-              ],
-            ),
-          ),
-        ],
+            // Bottom padding for safe area / bottom nav
+            SizedBox(height: context.bottomPadding + 100),
+          ],
+        ),
       ),
     );
   }
@@ -144,7 +125,211 @@ class HomeScreen extends ConsumerWidget {
   }
 }
 
-// ── Quick Access Grid ─────────────────────────────────────────────────────────
+// -- Gradient Header ---------------------------------------------------------
+
+class _GradientHeader extends StatelessWidget {
+  final String greeting;
+  final bool isDark;
+  final ColorScheme colorScheme;
+  final VoidCallback onSearchTap;
+  final VoidCallback onSettingsTap;
+
+  const _GradientHeader({
+    required this.greeting,
+    required this.isDark,
+    required this.colorScheme,
+    required this.onSearchTap,
+    required this.onSettingsTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final topPadding = context.topPadding;
+    final now = DateTime.now();
+    final months = [
+      'يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو',
+      'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر',
+    ];
+    final days = [
+      'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس',
+      'الجمعة', 'السبت', 'الأحد',
+    ];
+    final dayName = days[now.weekday - 1];
+    final dateString =
+        '$dayName، ${now.day.toString().toArabicNumerals} ${months[now.month - 1]}';
+
+    return Container(
+      padding: EdgeInsets.only(
+        top: topPadding + 16,
+        left: 20,
+        right: 20,
+        bottom: 28,
+      ),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: isDark
+              ? [
+                  AppColors.primaryDark,
+                  const Color(0xFF0A2E0A),
+                  AppColors.backgroundDark,
+                ]
+              : [
+                  AppColors.primary,
+                  AppColors.primaryLight,
+                  AppColors.primaryContainer,
+                ],
+        ),
+        borderRadius: const BorderRadius.only(
+          bottomLeft: Radius.circular(28),
+          bottomRight: Radius.circular(28),
+        ),
+      ),
+      child: Stack(
+        children: [
+          // Decorative pattern
+          Positioned(
+            top: -30,
+            right: -30,
+            child: Container(
+              width: 140,
+              height: 140,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Colors.white.withValues(alpha: 0.05),
+              ),
+            ),
+          ),
+          Positioned(
+            bottom: -20,
+            left: -20,
+            child: Container(
+              width: 100,
+              height: 100,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Colors.white.withValues(alpha: 0.03),
+              ),
+            ),
+          ),
+
+          // Content
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Top row: actions
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  _HeaderIconButton(
+                    icon: Icons.search_rounded,
+                    tooltip: 'بحث',
+                    onPressed: onSearchTap,
+                  ),
+                  const SizedBox(width: 8),
+                  _HeaderIconButton(
+                    icon: Icons.settings_outlined,
+                    tooltip: 'الإعدادات',
+                    onPressed: onSettingsTap,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+
+              // Greeting
+              Text(
+                'السلام عليكم',
+                style: AppTextStyles.arabicHeadline.copyWith(
+                  color: Colors.white,
+                  fontSize: 28,
+                  fontWeight: FontWeight.w700,
+                ),
+                textDirection: TextDirection.rtl,
+              ),
+              const SizedBox(height: 4),
+
+              // Sub-greeting
+              Text(
+                greeting,
+                style: AppTextStyles.arabicBody.copyWith(
+                  color: Colors.white.withValues(alpha: 0.8),
+                  fontSize: 16,
+                ),
+                textDirection: TextDirection.rtl,
+              ),
+              const SizedBox(height: 10),
+
+              // Date
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.calendar_today_rounded,
+                      color: Colors.white.withValues(alpha: 0.8),
+                      size: 14,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      dateString,
+                      style: AppTextStyles.arabicCaption.copyWith(
+                        color: Colors.white.withValues(alpha: 0.9),
+                        fontSize: 13,
+                      ),
+                      textDirection: TextDirection.rtl,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _HeaderIconButton extends StatelessWidget {
+  final IconData icon;
+  final String tooltip;
+  final VoidCallback onPressed;
+
+  const _HeaderIconButton({
+    required this.icon,
+    required this.tooltip,
+    required this.onPressed,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.white.withValues(alpha: 0.12),
+      borderRadius: BorderRadius.circular(12),
+      child: InkWell(
+        onTap: onPressed,
+        borderRadius: BorderRadius.circular(12),
+        child: Tooltip(
+          message: tooltip,
+          child: Container(
+            width: 40,
+            height: 40,
+            alignment: Alignment.center,
+            child: Icon(icon, color: Colors.white, size: 22),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// -- Quick Access Grid -------------------------------------------------------
 
 class _QuickAccessGrid extends StatelessWidget {
   static const _items = <_QuickAccessItem>[
@@ -209,11 +394,23 @@ class _QuickAccessGrid extends StatelessWidget {
           crossAxisCount: 4,
           mainAxisSpacing: 12,
           crossAxisSpacing: 12,
-          childAspectRatio: 0.85,
+          childAspectRatio: 0.82,
         ),
         itemCount: _items.length,
         itemBuilder: (context, index) {
-          return _QuickAccessTile(item: _items[index]);
+          return _QuickAccessTile(item: _items[index])
+              .animate()
+              .fadeIn(
+                delay: Duration(milliseconds: 550 + (index * 60)),
+                duration: 350.ms,
+              )
+              .scale(
+                begin: const Offset(0.9, 0.9),
+                end: const Offset(1, 1),
+                delay: Duration(milliseconds: 550 + (index * 60)),
+                duration: 350.ms,
+                curve: Curves.easeOut,
+              );
         },
       ),
     );
@@ -242,20 +439,23 @@ class _QuickAccessTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = context.isDarkMode;
+    final colorScheme = Theme.of(context).colorScheme;
 
     return Material(
       color: isDark ? AppColors.cardDark : AppColors.cardLight,
-      borderRadius: BorderRadius.circular(16),
+      borderRadius: BorderRadius.circular(18),
+      elevation: isDark ? 0 : 1,
+      shadowColor: item.color.withValues(alpha: 0.2),
       child: InkWell(
         onTap: () => context.pushNamed(item.route),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(18),
         child: Container(
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(18),
             border: Border.all(
               color: isDark
                   ? AppColors.dividerDark
-                  : AppColors.dividerLight,
+                  : item.color.withValues(alpha: 0.12),
               width: 0.5,
             ),
           ),
@@ -263,28 +463,35 @@ class _QuickAccessTile extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Container(
-                width: 44,
-                height: 44,
+                width: 48,
+                height: 48,
                 decoration: BoxDecoration(
-                  color: item.color.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(12),
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      item.color.withValues(alpha: isDark ? 0.2 : 0.12),
+                      item.color.withValues(alpha: isDark ? 0.08 : 0.04),
+                    ],
+                  ),
+                  borderRadius: BorderRadius.circular(14),
                 ),
                 child: Icon(item.icon, color: item.color, size: 24),
               ),
-              const SizedBox(height: 8),
-              Text(
-                item.label,
-                style: AppTextStyles.arabicCaption.copyWith(
-                  fontWeight: FontWeight.w600,
-                  fontSize: 12,
-                  color: isDark
-                      ? AppColors.textPrimaryDark
-                      : AppColors.textPrimaryLight,
+              const SizedBox(height: 10),
+              Flexible(
+                child: Text(
+                  item.label,
+                  style: AppTextStyles.arabicCaption.copyWith(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 12,
+                    color: colorScheme.onSurface,
+                  ),
+                  textDirection: TextDirection.rtl,
+                  textAlign: TextAlign.center,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
-                textDirection: TextDirection.rtl,
-                textAlign: TextAlign.center,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
               ),
             ],
           ),

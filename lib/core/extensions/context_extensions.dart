@@ -36,7 +36,6 @@ extension BuildContextExtensions on BuildContext {
 
   // ── Navigation ──
   NavigatorState get navigator => Navigator.of(this);
-  void pop<T>([T? result]) => navigator.pop(result);
   bool get canPop => navigator.canPop();
 
   // ── Snack Bar ──

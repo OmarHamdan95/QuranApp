@@ -9,8 +9,7 @@ import '../../domain/entities/hifz_plan.dart';
 import '../providers/hifz_providers.dart';
 
 /// Screen for creating or editing a Hifz (memorization) plan.
-/// Supports surah/juz/custom range, daily/weekly targets,
-/// reminders, estimated completion, and difficulty indicator.
+/// Modern design with rounded cards, gradient accents, and smooth animations.
 class HifzPlanSetupScreen extends ConsumerStatefulWidget {
   const HifzPlanSetupScreen({super.key});
 
@@ -66,11 +65,18 @@ class _HifzPlanSetupScreenState extends ConsumerState<HifzPlanSetupScreen> {
     final daysToComplete = _estimateDaysToComplete(remainingAyahs);
 
     return Scaffold(
+      backgroundColor:
+          isDark ? AppColors.backgroundDark : AppColors.backgroundLight,
       appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
         title: Text(
           'خطة الحفظ',
-          style: AppTextStyles.arabicHeadline.copyWith(color: AppColors.primary),
+          style: AppTextStyles.arabicHeadline
+              .copyWith(color: AppColors.primary),
+          textDirection: TextDirection.rtl,
         ),
+        centerTitle: true,
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
@@ -79,17 +85,18 @@ class _HifzPlanSetupScreenState extends ConsumerState<HifzPlanSetupScreen> {
           children: [
             // ── Range Type ──
             _SectionHeader(title: 'نطاق الحفظ', isDark: isDark),
-            const SizedBox(height: 8),
+            const SizedBox(height: 10),
             _RangeTypeSelector(
               selected: _rangeType,
+              isDark: isDark,
               onChanged: (v) => setState(() => _rangeType = v),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 24),
 
             // ── Start Position ──
             if (_rangeType != HifzRangeType.fullQuran) ...[
               _SectionHeader(title: 'بداية الحفظ', isDark: isDark),
-              const SizedBox(height: 8),
+              const SizedBox(height: 10),
               _SurahSelector(
                 label: 'من سورة',
                 value: _startSurah,
@@ -110,24 +117,24 @@ class _HifzPlanSetupScreenState extends ConsumerState<HifzPlanSetupScreen> {
                   onChanged: (v) => setState(() => _endSurah = v),
                   isDark: isDark,
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 24),
               ],
             ],
 
             // ── Daily Goal ──
             _SectionHeader(title: 'الهدف اليومي', isDark: isDark),
-            const SizedBox(height: 8),
+            const SizedBox(height: 10),
             _DailyGoalCard(
               goal: _dailyGoal,
               difficulty: difficulty,
               isDark: isDark,
               onChanged: (v) => setState(() => _dailyGoal = v),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 24),
 
             // ── Schedule ──
             _SectionHeader(title: 'جدول الحفظ', isDark: isDark),
-            const SizedBox(height: 8),
+            const SizedBox(height: 10),
             Wrap(
               spacing: 8,
               runSpacing: 8,
@@ -137,44 +144,49 @@ class _HifzPlanSetupScreenState extends ConsumerState<HifzPlanSetupScreen> {
                   icon: Icons.calendar_today,
                   type: HifzScheduleType.daily,
                   selected: _scheduleType == HifzScheduleType.daily,
-                  onTap: () =>
-                      setState(() => _scheduleType = HifzScheduleType.daily),
+                  isDark: isDark,
+                  onTap: () => setState(
+                      () => _scheduleType = HifzScheduleType.daily),
                 ),
                 _ScheduleChip(
                   label: '٥ أيام/أسبوع',
                   icon: Icons.date_range,
                   type: HifzScheduleType.fiveDays,
-                  selected: _scheduleType == HifzScheduleType.fiveDays,
-                  onTap: () =>
-                      setState(() => _scheduleType = HifzScheduleType.fiveDays),
+                  selected:
+                      _scheduleType == HifzScheduleType.fiveDays,
+                  isDark: isDark,
+                  onTap: () => setState(
+                      () => _scheduleType = HifzScheduleType.fiveDays),
                 ),
                 _ScheduleChip(
                   label: 'مخصص',
                   icon: Icons.tune,
                   type: HifzScheduleType.custom,
                   selected: _scheduleType == HifzScheduleType.custom,
-                  onTap: () =>
-                      setState(() => _scheduleType = HifzScheduleType.custom),
+                  isDark: isDark,
+                  onTap: () => setState(
+                      () => _scheduleType = HifzScheduleType.custom),
                 ),
               ],
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 24),
 
             // ── Revision ──
             _SectionHeader(title: 'المراجعة', isDark: isDark),
-            const SizedBox(height: 8),
+            const SizedBox(height: 10),
             _RevisionCard(
               includeRevision: _includeRevision,
               revisionAyahs: _revisionAyahs,
               isDark: isDark,
               onToggle: (v) => setState(() => _includeRevision = v),
-              onRevisionChanged: (v) => setState(() => _revisionAyahs = v),
+              onRevisionChanged: (v) =>
+                  setState(() => _revisionAyahs = v),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 24),
 
             // ── Reminders ──
             _SectionHeader(title: 'التذكيرات', isDark: isDark),
-            const SizedBox(height: 8),
+            const SizedBox(height: 10),
             _RemindersCard(
               enabled: _remindersEnabled,
               time: _reminderTime,
@@ -182,7 +194,7 @@ class _HifzPlanSetupScreenState extends ConsumerState<HifzPlanSetupScreen> {
               onToggle: (v) => setState(() => _remindersEnabled = v),
               onTimePicked: (t) => setState(() => _reminderTime = t),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 24),
 
             // ── Estimated Completion ──
             _EstimationCard(
@@ -194,26 +206,41 @@ class _HifzPlanSetupScreenState extends ConsumerState<HifzPlanSetupScreen> {
             const SizedBox(height: 28),
 
             // ── Save Button ──
-            ElevatedButton(
-              onPressed: _isSaving ? null : _savePlan,
-              style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 16),
-              ),
-              child: _isSaving
-                  ? const SizedBox(
-                      width: 22,
-                      height: 22,
-                      child: CircularProgressIndicator(
-                          strokeWidth: 2, color: Colors.white),
-                    )
-                  : Text(
-                      'حفظ الخطة',
-                      style: AppTextStyles.arabicBody.copyWith(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w700,
-                        fontSize: 18,
-                      ),
+            GestureDetector(
+              onTap: _isSaving ? null : _savePlan,
+              child: Container(
+                padding: const EdgeInsets.symmetric(vertical: 18),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [AppColors.primary, AppColors.primaryLight],
+                  ),
+                  borderRadius: BorderRadius.circular(18),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColors.primary.withValues(alpha: 0.3),
+                      blurRadius: 14,
+                      offset: const Offset(0, 4),
                     ),
+                  ],
+                ),
+                child: Center(
+                  child: _isSaving
+                      ? const SizedBox(
+                          width: 22,
+                          height: 22,
+                          child: CircularProgressIndicator(
+                              strokeWidth: 2, color: Colors.white),
+                        )
+                      : Text(
+                          'حفظ الخطة',
+                          style: AppTextStyles.arabicBody.copyWith(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 18,
+                          ),
+                        ),
+                ),
+              ),
             ),
 
             SizedBox(height: context.bottomPadding + 16),
@@ -277,9 +304,7 @@ class _HifzPlanSetupScreenState extends ConsumerState<HifzPlanSetupScreen> {
   }
 }
 
-// ─────────────────────────────────────────────
-// Sub-Widgets
-// ─────────────────────────────────────────────
+// ── Sub-Widgets ──────────────────────────────────────────────────────────────
 
 class _SectionHeader extends StatelessWidget {
   final String title;
@@ -293,7 +318,9 @@ class _SectionHeader extends StatelessWidget {
       title,
       style: AppTextStyles.arabicBody.copyWith(
         fontWeight: FontWeight.w700,
-        color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+        color: isDark
+            ? AppColors.textPrimaryDark
+            : AppColors.textPrimaryLight,
       ),
       textDirection: TextDirection.rtl,
     );
@@ -302,9 +329,14 @@ class _SectionHeader extends StatelessWidget {
 
 class _RangeTypeSelector extends StatelessWidget {
   final HifzRangeType selected;
+  final bool isDark;
   final ValueChanged<HifzRangeType> onChanged;
 
-  const _RangeTypeSelector({required this.selected, required this.onChanged});
+  const _RangeTypeSelector({
+    required this.selected,
+    required this.isDark,
+    required this.onChanged,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -324,17 +356,33 @@ class _RangeTypeSelector extends StatelessWidget {
           onTap: () => onChanged(item.type),
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 200),
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            padding:
+                const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
             decoration: BoxDecoration(
               color: isSelected
                   ? AppColors.primary
-                  : AppColors.primary.withValues(alpha: 0.06),
-              borderRadius: BorderRadius.circular(12),
+                  : isDark
+                      ? AppColors.cardDark
+                      : AppColors.cardLight,
+              borderRadius: BorderRadius.circular(14),
               border: Border.all(
                 color: isSelected
                     ? AppColors.primary
-                    : AppColors.primary.withValues(alpha: 0.2),
+                    : isDark
+                        ? AppColors.dividerDark
+                        : AppColors.dividerLight,
+                width: isSelected ? 1.5 : 0.5,
               ),
+              boxShadow: isSelected
+                  ? [
+                      BoxShadow(
+                        color:
+                            AppColors.primary.withValues(alpha: 0.25),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ]
+                  : null,
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
@@ -342,7 +390,11 @@ class _RangeTypeSelector extends StatelessWidget {
                 Text(
                   item.label,
                   style: AppTextStyles.arabicCaption.copyWith(
-                    color: isSelected ? Colors.white : AppColors.primary,
+                    color: isSelected
+                        ? Colors.white
+                        : isDark
+                            ? AppColors.textPrimaryDark
+                            : AppColors.textPrimaryLight,
                     fontWeight: FontWeight.w600,
                   ),
                   textDirection: TextDirection.rtl,
@@ -351,7 +403,11 @@ class _RangeTypeSelector extends StatelessWidget {
                 Icon(
                   item.icon,
                   size: 18,
-                  color: isSelected ? Colors.white : AppColors.primary,
+                  color: isSelected
+                      ? Colors.white
+                      : isDark
+                          ? AppColors.textTertiaryDark
+                          : AppColors.textTertiaryLight,
                 ),
               ],
             ),
@@ -383,9 +439,10 @@ class _SurahSelector extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
       decoration: BoxDecoration(
         color: isDark ? AppColors.cardDark : AppColors.cardLight,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(
           color: isDark ? AppColors.dividerDark : AppColors.dividerLight,
+          width: 0.5,
         ),
       ),
       child: Row(
@@ -413,7 +470,9 @@ class _SurahSelector extends StatelessWidget {
           Text(
             label,
             style: AppTextStyles.arabicCaption.copyWith(
-              color: AppColors.textTertiaryLight,
+              color: isDark
+                  ? AppColors.textTertiaryDark
+                  : AppColors.textTertiaryLight,
             ),
             textDirection: TextDirection.rtl,
           ),
@@ -452,12 +511,13 @@ class _DailyGoalCard extends StatelessWidget {
     };
 
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         color: isDark ? AppColors.cardDark : AppColors.cardLight,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(18),
         border: Border.all(
           color: isDark ? AppColors.dividerDark : AppColors.dividerLight,
+          width: 0.5,
         ),
       ),
       child: Column(
@@ -465,10 +525,9 @@ class _DailyGoalCard extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              // Difficulty badge
               Container(
                 padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
                 decoration: BoxDecoration(
                   color: diffColor.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(20),
@@ -482,7 +541,6 @@ class _DailyGoalCard extends StatelessWidget {
                   textDirection: TextDirection.rtl,
                 ),
               ),
-              // Goal display
               RichText(
                 textDirection: TextDirection.rtl,
                 text: TextSpan(
@@ -490,7 +548,9 @@ class _DailyGoalCard extends StatelessWidget {
                     TextSpan(
                       text: ' آيات/يوم',
                       style: AppTextStyles.arabicCaption.copyWith(
-                        color: AppColors.textTertiaryLight,
+                        color: isDark
+                            ? AppColors.textTertiaryDark
+                            : AppColors.textTertiaryLight,
                       ),
                     ),
                     TextSpan(
@@ -505,29 +565,46 @@ class _DailyGoalCard extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 12),
-          Slider(
-            value: goal.toDouble(),
-            min: AppConstants.minDailyAyahGoal.toDouble(),
-            max: AppConstants.maxDailyAyahGoal.toDouble(),
-            divisions: AppConstants.maxDailyAyahGoal -
-                AppConstants.minDailyAyahGoal,
-            label: '$goal آيات',
-            activeColor: AppColors.primary,
-            onChanged: (v) => onChanged(v.round()),
+          const SizedBox(height: 14),
+          SliderTheme(
+            data: SliderThemeData(
+              activeTrackColor: AppColors.primary,
+              inactiveTrackColor:
+                  AppColors.primary.withValues(alpha: 0.12),
+              thumbColor: AppColors.primary,
+              overlayColor: AppColors.primary.withValues(alpha: 0.12),
+              trackHeight: 4,
+              thumbShape: const RoundSliderThumbShape(
+                  enabledThumbRadius: 8),
+            ),
+            child: Slider(
+              value: goal.toDouble(),
+              min: AppConstants.minDailyAyahGoal.toDouble(),
+              max: AppConstants.maxDailyAyahGoal.toDouble(),
+              divisions: AppConstants.maxDailyAyahGoal -
+                  AppConstants.minDailyAyahGoal,
+              label: '$goal آيات',
+              onChanged: (v) => onChanged(v.round()),
+            ),
           ),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
                 '${AppConstants.maxDailyAyahGoal}',
-                style:
-                    AppTextStyles.labelSmall.copyWith(color: AppColors.textTertiaryLight),
+                style: AppTextStyles.labelSmall.copyWith(
+                  color: isDark
+                      ? AppColors.textTertiaryDark
+                      : AppColors.textTertiaryLight,
+                ),
               ),
               Text(
                 '${AppConstants.minDailyAyahGoal}',
-                style:
-                    AppTextStyles.labelSmall.copyWith(color: AppColors.textTertiaryLight),
+                style: AppTextStyles.labelSmall.copyWith(
+                  color: isDark
+                      ? AppColors.textTertiaryDark
+                      : AppColors.textTertiaryLight,
+                ),
               ),
             ],
           ),
@@ -542,6 +619,7 @@ class _ScheduleChip extends StatelessWidget {
   final IconData icon;
   final HifzScheduleType type;
   final bool selected;
+  final bool isDark;
   final VoidCallback onTap;
 
   const _ScheduleChip({
@@ -549,6 +627,7 @@ class _ScheduleChip extends StatelessWidget {
     required this.icon,
     required this.type,
     required this.selected,
+    required this.isDark,
     required this.onTap,
   });
 
@@ -558,14 +637,21 @@ class _ScheduleChip extends StatelessWidget {
       onTap: onTap,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        padding:
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         decoration: BoxDecoration(
-          color: selected ? AppColors.primary : Colors.transparent,
+          color: selected
+              ? AppColors.primary
+              : isDark
+                  ? AppColors.cardDark
+                  : AppColors.cardLight,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
             color: selected
                 ? AppColors.primary
-                : AppColors.dividerLight,
+                : isDark
+                    ? AppColors.dividerDark
+                    : AppColors.dividerLight,
           ),
         ),
         child: Row(
@@ -576,8 +662,11 @@ class _ScheduleChip extends StatelessWidget {
               style: AppTextStyles.arabicCaption.copyWith(
                 color: selected
                     ? Colors.white
-                    : AppColors.textPrimaryLight,
-                fontWeight: selected ? FontWeight.w700 : FontWeight.w400,
+                    : isDark
+                        ? AppColors.textPrimaryDark
+                        : AppColors.textPrimaryLight,
+                fontWeight:
+                    selected ? FontWeight.w700 : FontWeight.w400,
               ),
               textDirection: TextDirection.rtl,
             ),
@@ -585,7 +674,11 @@ class _ScheduleChip extends StatelessWidget {
             Icon(
               icon,
               size: 16,
-              color: selected ? Colors.white : AppColors.textTertiaryLight,
+              color: selected
+                  ? Colors.white
+                  : isDark
+                      ? AppColors.textTertiaryDark
+                      : AppColors.textTertiaryLight,
             ),
           ],
         ),
@@ -614,9 +707,10 @@ class _RevisionCard extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         color: isDark ? AppColors.cardDark : AppColors.cardLight,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(18),
         border: Border.all(
           color: isDark ? AppColors.dividerDark : AppColors.dividerLight,
+          width: 0.5,
         ),
       ),
       child: Column(
@@ -631,8 +725,11 @@ class _RevisionCard extends StatelessWidget {
             ),
             subtitle: Text(
               'مراجعة الآيات المحفوظة سابقًا',
-              style: AppTextStyles.arabicCaption
-                  .copyWith(color: AppColors.textTertiaryLight),
+              style: AppTextStyles.arabicCaption.copyWith(
+                color: isDark
+                    ? AppColors.textTertiaryDark
+                    : AppColors.textTertiaryLight,
+              ),
               textDirection: TextDirection.rtl,
             ),
             activeColor: AppColors.primary,
@@ -642,20 +739,24 @@ class _RevisionCard extends StatelessWidget {
           if (includeRevision) ...[
             Divider(
               height: 0,
-              color: isDark ? AppColors.dividerDark : AppColors.dividerLight,
+              color:
+                  isDark ? AppColors.dividerDark : AppColors.dividerLight,
             ),
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              padding: const EdgeInsets.symmetric(
+                  horizontal: 16, vertical: 12),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Row(
                     children: [
                       IconButton(
-                        icon: const Icon(Icons.remove_circle_outline,
+                        icon: const Icon(
+                            Icons.remove_circle_outline,
                             color: AppColors.primary),
                         onPressed: revisionAyahs > 5
-                            ? () => onRevisionChanged(revisionAyahs - 5)
+                            ? () =>
+                                onRevisionChanged(revisionAyahs - 5)
                             : null,
                         padding: EdgeInsets.zero,
                         constraints: const BoxConstraints(),
@@ -672,7 +773,8 @@ class _RevisionCard extends StatelessWidget {
                         icon: const Icon(Icons.add_circle_outline,
                             color: AppColors.primary),
                         onPressed: revisionAyahs < 50
-                            ? () => onRevisionChanged(revisionAyahs + 5)
+                            ? () =>
+                                onRevisionChanged(revisionAyahs + 5)
                             : null,
                         padding: EdgeInsets.zero,
                         constraints: const BoxConstraints(),
@@ -681,8 +783,11 @@ class _RevisionCard extends StatelessWidget {
                   ),
                   Text(
                     'آيات مراجعة يوميًا',
-                    style: AppTextStyles.arabicCaption
-                        .copyWith(color: AppColors.textSecondaryLight),
+                    style: AppTextStyles.arabicCaption.copyWith(
+                      color: isDark
+                          ? AppColors.textSecondaryDark
+                          : AppColors.textSecondaryLight,
+                    ),
                     textDirection: TextDirection.rtl,
                   ),
                 ],
@@ -715,9 +820,10 @@ class _RemindersCard extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         color: isDark ? AppColors.cardDark : AppColors.cardLight,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(18),
         border: Border.all(
           color: isDark ? AppColors.dividerDark : AppColors.dividerLight,
+          width: 0.5,
         ),
       ),
       child: Column(
@@ -732,8 +838,11 @@ class _RemindersCard extends StatelessWidget {
             ),
             subtitle: Text(
               'تذكير يومي بموعد الحفظ',
-              style: AppTextStyles.arabicCaption
-                  .copyWith(color: AppColors.textTertiaryLight),
+              style: AppTextStyles.arabicCaption.copyWith(
+                color: isDark
+                    ? AppColors.textTertiaryDark
+                    : AppColors.textTertiaryLight,
+              ),
               textDirection: TextDirection.rtl,
             ),
             activeColor: AppColors.primary,
@@ -745,7 +854,8 @@ class _RemindersCard extends StatelessWidget {
           if (enabled) ...[
             Divider(
               height: 0,
-              color: isDark ? AppColors.dividerDark : AppColors.dividerLight,
+              color:
+                  isDark ? AppColors.dividerDark : AppColors.dividerLight,
             ),
             InkWell(
               onTap: () async {
@@ -759,29 +869,36 @@ class _RemindersCard extends StatelessWidget {
                 );
                 if (picked != null) onTimePicked(picked);
               },
-              borderRadius:
-                  const BorderRadius.vertical(bottom: Radius.circular(14)),
+              borderRadius: const BorderRadius.vertical(
+                  bottom: Radius.circular(18)),
               child: Padding(
                 padding: const EdgeInsets.symmetric(
                     horizontal: 16, vertical: 14),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Icon(Icons.access_time, color: AppColors.primary, size: 20),
-                    const SizedBox(width: 8),
-                    Text(
-                      '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}',
-                      style: AppTextStyles.headlineSmall.copyWith(
-                        color: AppColors.primary,
-                        fontWeight: FontWeight.w700,
-                        fontFamily: 'monospace',
-                      ),
+                    Row(
+                      children: [
+                        const Icon(Icons.access_time,
+                            color: AppColors.primary, size: 20),
+                        const SizedBox(width: 8),
+                        Text(
+                          '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}',
+                          style: AppTextStyles.headlineSmall.copyWith(
+                            color: AppColors.primary,
+                            fontWeight: FontWeight.w700,
+                            fontFamily: 'monospace',
+                          ),
+                        ),
+                      ],
                     ),
-                    const Spacer(),
                     Text(
                       'وقت التذكير',
-                      style: AppTextStyles.arabicCaption
-                          .copyWith(color: AppColors.textSecondaryLight),
+                      style: AppTextStyles.arabicCaption.copyWith(
+                        color: isDark
+                            ? AppColors.textSecondaryDark
+                            : AppColors.textSecondaryLight,
+                      ),
                       textDirection: TextDirection.rtl,
                     ),
                   ],
@@ -825,10 +942,17 @@ class _EstimationCard extends StatelessWidget {
     }
 
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: AppColors.primary.withValues(alpha: 0.06),
-        borderRadius: BorderRadius.circular(14),
+        gradient: LinearGradient(
+          begin: Alignment.topRight,
+          end: Alignment.bottomLeft,
+          colors: [
+            AppColors.primary.withValues(alpha: 0.08),
+            AppColors.primary.withValues(alpha: 0.03),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(18),
         border: Border.all(
           color: AppColors.primary.withValues(alpha: 0.2),
         ),
@@ -848,7 +972,7 @@ class _EstimationCard extends StatelessWidget {
                   ),
                   textDirection: TextDirection.rtl,
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 6),
                 Text(
                   estimate,
                   style: AppTextStyles.arabicBody.copyWith(
@@ -869,7 +993,16 @@ class _EstimationCard extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 12),
-          const Icon(Icons.info_outline, color: AppColors.primary, size: 22),
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: AppColors.primary.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Icon(Icons.info_outline,
+                color: AppColors.primary, size: 22),
+          ),
         ],
       ),
     );

@@ -3,16 +3,17 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../../core/constants/app_constants.dart';
-import '../../../../core/extensions/context_extensions.dart';
-import '../../../../core/routing/app_router.dart';
-import '../../../../core/theme/app_colors.dart';
-import '../../../../core/theme/app_text_styles.dart';
-import '../../../../shared/widgets/loading_widget.dart';
-import '../providers/quran_providers.dart';
-import '../widgets/ayah_widget.dart';
+import 'package:quran_app/core/constants/app_constants.dart';
+import 'package:quran_app/core/extensions/context_extensions.dart';
+import 'package:quran_app/core/routing/app_router.dart';
+import 'package:quran_app/core/theme/app_colors.dart';
+import 'package:quran_app/core/theme/app_text_styles.dart';
+import 'package:quran_app/shared/widgets/loading_widget.dart';
+import 'package:quran_app/features/quran/domain/entities/surah.dart';
+import 'package:quran_app/features/quran/presentation/providers/quran_providers.dart';
+import 'package:quran_app/features/quran/presentation/widgets/ayah_widget.dart';
 
-/// Full-screen Quran reading experience.
+/// Full-screen Quran reading experience with modern, clean design.
 ///
 /// Features:
 /// - Continuous scroll (surah mode) with individual ayah rendering
@@ -20,7 +21,8 @@ import '../widgets/ayah_widget.dart';
 /// - Ayah highlighting (tapping an ayah highlights it)
 /// - Adjustable Arabic font size via bottom slider
 /// - Translation / tafsir toggles
-/// - Immersive edge-to-edge display with overlay controls
+/// - Elegant overlay controls with smooth animations
+/// - Decorative surah header and bismillah banner
 class QuranReaderScreen extends ConsumerStatefulWidget {
   final int surahNumber;
   final int? initialAyah;
@@ -84,16 +86,15 @@ class _QuranReaderScreenState extends ConsumerState<QuranReaderScreen>
 
   void _onScroll() {
     // Estimate which ayah index is at the top of the viewport.
-    // Each ayah is roughly 140 dp tall on average.
     const estimatedAyahHeight = 140.0;
-    final headerOffset = 200.0; // header + bismillah height estimate
+    final headerOffset = 200.0;
     final offset = _scrollController.offset - headerOffset;
     if (offset > 0) {
       final newIndex =
           (offset / estimatedAyahHeight).floor().clamp(0, 9999);
       if (newIndex != _visibleAyahIndex) {
         _visibleAyahIndex = newIndex;
-        // Debounced save — save every 5 ayahs scrolled.
+        // Debounced save -- save every 5 ayahs scrolled.
         if (_visibleAyahIndex % 5 == 0) {
           _saveCurrentPosition();
         }
@@ -102,7 +103,6 @@ class _QuranReaderScreenState extends ConsumerState<QuranReaderScreen>
   }
 
   void _scrollToAyah(int ayahNumber) {
-    // Approximate scroll offset for the target ayah.
     const estimatedAyahHeight = 140.0;
     const headerOffset = 200.0;
     final offset = headerOffset + (ayahNumber - 1) * estimatedAyahHeight;
@@ -160,7 +160,7 @@ class _QuranReaderScreenState extends ConsumerState<QuranReaderScreen>
         behavior: HitTestBehavior.opaque,
         child: Stack(
           children: [
-            // ── Main Ayah List ────────────────────────────────────────
+            // -- Main Ayah List --
             ayahsAsync.when(
               data: (ayahs) {
                 return CustomScrollView(
@@ -178,6 +178,7 @@ class _QuranReaderScreenState extends ConsumerState<QuranReaderScreen>
                         child: _SurahHeader(
                           surahName: surah.nameArabic,
                           surahNameEnglish: surah.nameEnglish,
+                          surahTranslation: surah.nameTranslation,
                           ayahCount: surah.ayahCount,
                           revelationType: surah.revelationType,
                           isDark: isDark,
@@ -189,14 +190,11 @@ class _QuranReaderScreenState extends ConsumerState<QuranReaderScreen>
                           const SliverToBoxAdapter(child: SizedBox()),
                     ),
 
-                    // Bismillah (except At-Tawbah #9 and Al-Fatihah #1
-                    // which already begins with bismillah as verse 1)
+                    // Bismillah (except At-Tawbah #9 and Al-Fatihah #1)
                     if (widget.surahNumber != 9 &&
                         widget.surahNumber != 1)
                       SliverToBoxAdapter(
-                        child: _BismillahBanner(
-                          isDark: isDark,
-                        ),
+                        child: _BismillahBanner(isDark: isDark),
                       ),
 
                     // Ayahs list
@@ -267,37 +265,72 @@ class _QuranReaderScreenState extends ConsumerState<QuranReaderScreen>
                     // Bottom safe area padding
                     SliverToBoxAdapter(
                       child: SizedBox(
-                          height: context.bottomPadding + 100),
+                          height: context.bottomPadding + 120),
                     ),
                   ],
                 );
               },
-              loading: () => const LoadingWidget(),
+              loading: () => const LoadingWidget(
+                message: 'جاري تحميل الآيات...',
+              ),
               error: (error, _) => Center(
                 child: Padding(
-                  padding: const EdgeInsets.all(24),
+                  padding: const EdgeInsets.all(32),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(
-                        Icons.error_outline_rounded,
-                        size: 56,
-                        color: AppColors.error,
+                      Container(
+                        width: 80,
+                        height: 80,
+                        decoration: BoxDecoration(
+                          color: AppColors.error.withValues(alpha: 0.08),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(
+                          Icons.error_outline_rounded,
+                          size: 40,
+                          color: AppColors.error.withValues(alpha: 0.7),
+                        ),
                       ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 20),
                       Text(
-                        'تعذّر تحميل السورة\n$error',
+                        'تعذّر تحميل السورة',
                         style: AppTextStyles.arabicBody.copyWith(
-                          color: AppColors.textSecondaryLight,
+                          color: isDark
+                              ? AppColors.textSecondaryDark
+                              : AppColors.textSecondaryLight,
+                          fontWeight: FontWeight.w600,
                         ),
                         textAlign: TextAlign.center,
                         textDirection: TextDirection.rtl,
                       ),
-                      const SizedBox(height: 20),
-                      ElevatedButton(
+                      const SizedBox(height: 8),
+                      Text(
+                        '$error',
+                        style: AppTextStyles.bodySmall.copyWith(
+                          color: isDark
+                              ? AppColors.textTertiaryDark
+                              : AppColors.textTertiaryLight,
+                        ),
+                        textAlign: TextAlign.center,
+                        maxLines: 3,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 24),
+                      FilledButton.icon(
                         onPressed: () => ref.invalidate(
                             ayahsBySurahProvider(widget.surahNumber)),
-                        child: const Text('إعادة المحاولة'),
+                        icon: const Icon(Icons.refresh_rounded, size: 18),
+                        label: const Text('إعادة المحاولة'),
+                        style: FilledButton.styleFrom(
+                          backgroundColor: AppColors.primary,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 28, vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                        ),
                       ),
                     ],
                   ),
@@ -305,7 +338,7 @@ class _QuranReaderScreenState extends ConsumerState<QuranReaderScreen>
               ),
             ),
 
-            // ── Top Controls Overlay ──────────────────────────────────
+            // -- Top Controls Overlay --
             AnimatedSlide(
               offset: _showControls
                   ? Offset.zero
@@ -323,7 +356,7 @@ class _QuranReaderScreenState extends ConsumerState<QuranReaderScreen>
               ),
             ),
 
-            // ── Bottom Controls Overlay ───────────────────────────────
+            // -- Bottom Controls Overlay --
             Positioned(
               bottom: 0,
               left: 0,
@@ -364,11 +397,12 @@ class _QuranReaderScreenState extends ConsumerState<QuranReaderScreen>
   }
 }
 
-// ── Surah Decorative Header ───────────────────────────────────────────────────
+// -- Surah Decorative Header --
 
 class _SurahHeader extends StatelessWidget {
   final String surahName;
   final String surahNameEnglish;
+  final String surahTranslation;
   final int ayahCount;
   final String revelationType;
   final bool isDark;
@@ -376,6 +410,7 @@ class _SurahHeader extends StatelessWidget {
   const _SurahHeader({
     required this.surahName,
     required this.surahNameEnglish,
+    required this.surahTranslation,
     required this.ayahCount,
     required this.revelationType,
     required this.isDark,
@@ -387,13 +422,12 @@ class _SurahHeader extends StatelessWidget {
 
     return Container(
       margin: const EdgeInsets.fromLTRB(20, 8, 20, 0),
-      padding:
-          const EdgeInsets.symmetric(vertical: 20, horizontal: 24),
+      padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 28),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
-            AppColors.primary.withValues(alpha: isDark ? 0.2 : 0.08),
-            AppColors.secondary.withValues(alpha: isDark ? 0.1 : 0.04),
+            AppColors.primary.withValues(alpha: isDark ? 0.18 : 0.07),
+            AppColors.secondary.withValues(alpha: isDark ? 0.08 : 0.03),
           ],
           begin: Alignment.topRight,
           end: Alignment.bottomLeft,
@@ -401,57 +435,121 @@ class _SurahHeader extends StatelessWidget {
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
           color:
-              AppColors.primary.withValues(alpha: isDark ? 0.3 : 0.15),
+              AppColors.primary.withValues(alpha: isDark ? 0.25 : 0.12),
           width: 1,
         ),
+        boxShadow: isDark
+            ? null
+            : [
+                BoxShadow(
+                  color: AppColors.primary.withValues(alpha: 0.04),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
+                ),
+              ],
       ),
       child: Column(
         children: [
+          // Decorative top ornament
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              _OrnamentLine(isDark: isDark, reverse: false),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 10),
+                child: Icon(
+                  Icons.auto_awesome,
+                  size: 14,
+                  color: AppColors.secondary.withValues(alpha: 0.5),
+                ),
+              ),
+              _OrnamentLine(isDark: isDark, reverse: true),
+            ],
+          ),
+          const SizedBox(height: 16),
+
           // Arabic name
           Text(
             surahName,
             style: AppTextStyles.surahNameArabic.copyWith(
-              fontSize: 32,
+              fontSize: 34,
               color: isDark
                   ? AppColors.quranTextColorDark
                   : AppColors.primary,
               fontWeight: FontWeight.w700,
+              height: 1.4,
             ),
             textAlign: TextAlign.center,
             textDirection: TextDirection.rtl,
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 6),
 
           // English name
           Text(
             surahNameEnglish,
-            style: AppTextStyles.titleSmall.copyWith(
+            style: AppTextStyles.titleMedium.copyWith(
               color: isDark
                   ? AppColors.textSecondaryDark
                   : AppColors.textSecondaryLight,
-              letterSpacing: 1,
+              letterSpacing: 0.8,
+              fontWeight: FontWeight.w600,
             ),
             textAlign: TextAlign.center,
           ),
-          const SizedBox(height: 12),
+
+          // English meaning
+          Text(
+            surahTranslation,
+            style: AppTextStyles.bodySmall.copyWith(
+              color: isDark
+                  ? AppColors.textTertiaryDark
+                  : AppColors.textTertiaryLight,
+              letterSpacing: 0.5,
+              fontStyle: FontStyle.italic,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 16),
 
           // Metadata pills
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               _SurahPill(
-                label:
-                    '$ayahCount آية',
+                label: '$ayahCount آية',
+                icon: Icons.auto_stories_outlined,
                 color: AppColors.primary,
                 isDark: isDark,
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: 10),
               _SurahPill(
                 label: isMeccan ? 'مكية' : 'مدنية',
+                icon: isMeccan
+                    ? Icons.location_city_rounded
+                    : Icons.mosque_rounded,
                 color:
                     isMeccan ? AppColors.secondary : AppColors.tertiary,
                 isDark: isDark,
               ),
+            ],
+          ),
+
+          const SizedBox(height: 12),
+
+          // Decorative bottom ornament
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              _OrnamentLine(isDark: isDark, reverse: false),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 10),
+                child: Icon(
+                  Icons.auto_awesome,
+                  size: 14,
+                  color: AppColors.secondary.withValues(alpha: 0.5),
+                ),
+              ),
+              _OrnamentLine(isDark: isDark, reverse: true),
             ],
           ),
         ],
@@ -460,13 +558,45 @@ class _SurahHeader extends StatelessWidget {
   }
 }
 
+class _OrnamentLine extends StatelessWidget {
+  final bool isDark;
+  final bool reverse;
+
+  const _OrnamentLine({required this.isDark, required this.reverse});
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 60,
+      height: 1,
+      child: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: reverse
+                ? [
+                    AppColors.primary.withValues(alpha: isDark ? 0.4 : 0.25),
+                    Colors.transparent,
+                  ]
+                : [
+                    Colors.transparent,
+                    AppColors.primary.withValues(alpha: isDark ? 0.4 : 0.25),
+                  ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _SurahPill extends StatelessWidget {
   final String label;
+  final IconData icon;
   final Color color;
   final bool isDark;
 
   const _SurahPill({
     required this.label,
+    required this.icon,
     required this.color,
     required this.isDark,
   });
@@ -474,27 +604,35 @@ class _SurahPill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: isDark ? 0.2 : 0.1),
+        color: color.withValues(alpha: isDark ? 0.18 : 0.1),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: color.withValues(alpha: 0.3),
+          color: color.withValues(alpha: 0.25),
+          width: 0.5,
         ),
       ),
-      child: Text(
-        label,
-        style: AppTextStyles.arabicCaption.copyWith(
-          color: color,
-          fontWeight: FontWeight.w600,
-        ),
-        textDirection: TextDirection.rtl,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 12, color: color),
+          const SizedBox(width: 5),
+          Text(
+            label,
+            style: AppTextStyles.arabicCaption.copyWith(
+              color: color,
+              fontWeight: FontWeight.w600,
+            ),
+            textDirection: TextDirection.rtl,
+          ),
+        ],
       ),
     );
   }
 }
 
-// ── Bismillah Banner ──────────────────────────────────────────────────────────
+// -- Bismillah Banner --
 
 class _BismillahBanner extends StatelessWidget {
   final bool isDark;
@@ -504,8 +642,7 @@ class _BismillahBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding:
-          const EdgeInsets.symmetric(vertical: 20, horizontal: 32),
+      padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 32),
       child: Column(
         children: [
           // Decorative divider
@@ -513,33 +650,35 @@ class _BismillahBanner extends StatelessWidget {
             children: [
               Expanded(
                 child: Container(
-                  height: 1,
+                  height: 0.5,
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
                       colors: [
                         Colors.transparent,
-                        AppColors.primary.withValues(alpha: 0.3),
+                        AppColors.secondary.withValues(alpha: 0.4),
                       ],
                     ),
                   ),
                 ),
               ),
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                child: Icon(
-                  Icons.star_rounded,
-                  size: 14,
-                  color:
-                      AppColors.secondary.withValues(alpha: 0.6),
+                padding: const EdgeInsets.symmetric(horizontal: 14),
+                child: Container(
+                  width: 6,
+                  height: 6,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: AppColors.secondary.withValues(alpha: 0.4),
+                  ),
                 ),
               ),
               Expanded(
                 child: Container(
-                  height: 1,
+                  height: 0.5,
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
                       colors: [
-                        AppColors.primary.withValues(alpha: 0.3),
+                        AppColors.secondary.withValues(alpha: 0.4),
                         Colors.transparent,
                       ],
                     ),
@@ -548,7 +687,7 @@ class _BismillahBanner extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 20),
           Text(
             AppConstants.bismillah,
             style: AppTextStyles.bismillah.copyWith(
@@ -556,42 +695,45 @@ class _BismillahBanner extends StatelessWidget {
                   ? AppColors.primaryLight
                   : AppColors.primary,
               fontSize: 30,
+              height: 1.8,
             ),
             textAlign: TextAlign.center,
             textDirection: TextDirection.rtl,
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 20),
           Row(
             children: [
               Expanded(
                 child: Container(
-                  height: 1,
+                  height: 0.5,
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
                       colors: [
                         Colors.transparent,
-                        AppColors.primary.withValues(alpha: 0.3),
+                        AppColors.secondary.withValues(alpha: 0.4),
                       ],
                     ),
                   ),
                 ),
               ),
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                child: Icon(
-                  Icons.star_rounded,
-                  size: 14,
-                  color:
-                      AppColors.secondary.withValues(alpha: 0.6),
+                padding: const EdgeInsets.symmetric(horizontal: 14),
+                child: Container(
+                  width: 6,
+                  height: 6,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: AppColors.secondary.withValues(alpha: 0.4),
+                  ),
                 ),
               ),
               Expanded(
                 child: Container(
-                  height: 1,
+                  height: 0.5,
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
                       colors: [
-                        AppColors.primary.withValues(alpha: 0.3),
+                        AppColors.secondary.withValues(alpha: 0.4),
                         Colors.transparent,
                       ],
                     ),
@@ -606,10 +748,10 @@ class _BismillahBanner extends StatelessWidget {
   }
 }
 
-// ── Top Bar ───────────────────────────────────────────────────────────────────
+// -- Top Bar --
 
 class _TopBar extends StatelessWidget {
-  final AsyncValue surahAsync;
+  final AsyncValue<Surah> surahAsync;
   final VoidCallback onBack;
   final bool isDark;
 
@@ -633,63 +775,109 @@ class _TopBar extends StatelessWidget {
           end: Alignment.bottomCenter,
           colors: [
             bgColor,
-            bgColor.withValues(alpha: 0.95),
+            bgColor.withValues(alpha: 0.98),
             bgColor.withValues(alpha: 0),
           ],
-          stops: const [0.0, 0.7, 1.0],
+          stops: const [0.0, 0.75, 1.0],
         ),
       ),
-      child: Row(
-        children: [
-          IconButton(
-            icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
-            onPressed: onBack,
-            color: isDark
-                ? AppColors.textPrimaryDark
-                : AppColors.textPrimaryLight,
-          ),
-          const Spacer(),
-          surahAsync.when(
-            data: (surah) => Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  surah.nameArabic,
-                  style: AppTextStyles.arabicHeadline.copyWith(
-                    color: isDark
-                        ? AppColors.primaryLight
-                        : AppColors.primary,
-                    fontSize: 20,
-                  ),
-                ),
-                Text(
-                  surah.nameEnglish,
-                  style: AppTextStyles.labelSmall.copyWith(
-                    color: isDark
-                        ? AppColors.textTertiaryDark
-                        : AppColors.textTertiaryLight,
-                  ),
-                ),
-              ],
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 4),
+        child: Row(
+          children: [
+            // Back button with subtle background
+            Container(
+              margin: const EdgeInsets.all(4),
+              decoration: BoxDecoration(
+                color: isDark
+                    ? AppColors.surfaceVariantDark.withValues(alpha: 0.5)
+                    : Colors.white.withValues(alpha: 0.7),
+                shape: BoxShape.circle,
+                boxShadow: isDark
+                    ? null
+                    : [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.04),
+                          blurRadius: 4,
+                        ),
+                      ],
+              ),
+              child: IconButton(
+                icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 18),
+                onPressed: onBack,
+                color: isDark
+                    ? AppColors.textPrimaryDark
+                    : AppColors.textPrimaryLight,
+              ),
             ),
-            loading: () => const SizedBox.shrink(),
-            error: (_, __) => const SizedBox.shrink(),
-          ),
-          const Spacer(),
-          IconButton(
-            icon: const Icon(Icons.more_vert_rounded, size: 20),
-            onPressed: () {},
-            color: isDark
-                ? AppColors.textPrimaryDark
-                : AppColors.textPrimaryLight,
-          ),
-        ],
+
+            const Spacer(),
+
+            // Surah name in center
+            surahAsync.when(
+              data: (surah) => Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    surah.nameArabic,
+                    style: AppTextStyles.arabicHeadline.copyWith(
+                      color: isDark
+                          ? AppColors.primaryLight
+                          : AppColors.primary,
+                      fontSize: 20,
+                    ),
+                  ),
+                  const SizedBox(height: 1),
+                  Text(
+                    surah.nameEnglish,
+                    style: AppTextStyles.labelSmall.copyWith(
+                      color: isDark
+                          ? AppColors.textTertiaryDark
+                          : AppColors.textTertiaryLight,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                ],
+              ),
+              loading: () => const SizedBox.shrink(),
+              error: (_, __) => const SizedBox.shrink(),
+            ),
+
+            const Spacer(),
+
+            // More options button
+            Container(
+              margin: const EdgeInsets.all(4),
+              decoration: BoxDecoration(
+                color: isDark
+                    ? AppColors.surfaceVariantDark.withValues(alpha: 0.5)
+                    : Colors.white.withValues(alpha: 0.7),
+                shape: BoxShape.circle,
+                boxShadow: isDark
+                    ? null
+                    : [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.04),
+                          blurRadius: 4,
+                        ),
+                      ],
+              ),
+              child: IconButton(
+                icon: const Icon(Icons.more_vert_rounded, size: 18),
+                onPressed: () {},
+                color: isDark
+                    ? AppColors.textPrimaryDark
+                    : AppColors.textPrimaryLight,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 }
 
-// ── Bottom Controls ───────────────────────────────────────────────────────────
+// -- Bottom Controls --
 
 class _BottomControls extends StatelessWidget {
   final double fontSize;
@@ -715,7 +903,7 @@ class _BottomControls extends StatelessWidget {
     return Container(
       padding: EdgeInsets.only(
         bottom: bottomPadding + 12,
-        top: 12,
+        top: 16,
         left: 16,
         right: 16,
       ),
@@ -725,53 +913,90 @@ class _BottomControls extends StatelessWidget {
           end: Alignment.topCenter,
           colors: [
             bgColor,
-            bgColor.withValues(alpha: 0.95),
+            bgColor.withValues(alpha: 0.98),
             bgColor.withValues(alpha: 0),
           ],
-          stops: const [0.0, 0.7, 1.0],
+          stops: const [0.0, 0.75, 1.0],
         ),
       ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // Font size row
-          Row(
-            children: [
-              const Icon(
-                Icons.text_fields_rounded,
-                size: 16,
-                color: AppColors.textTertiaryLight,
-              ),
-              Expanded(
-                child: Slider(
-                  value: fontSize,
-                  min: AppConstants.minFontSize,
-                  max: AppConstants.maxFontSize,
-                  divisions: 15,
-                  activeColor: AppColors.primary,
-                  inactiveColor:
-                      AppColors.primary.withValues(alpha: 0.2),
-                  onChanged: onFontSizeChanged,
-                ),
-              ),
-              const Icon(
-                Icons.text_fields_rounded,
-                size: 24,
-                color: AppColors.textTertiaryLight,
-              ),
-              const SizedBox(width: 12),
-
-              // Translation toggle
-              _ControlButton(
-                icon: Icons.translate_rounded,
-                isActive: showTranslation,
-                label: 'ترجمة',
-                onTap: onToggleTranslation,
-                isDark: isDark,
-              ),
-            ],
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: isDark
+              ? AppColors.surfaceVariantDark.withValues(alpha: 0.85)
+              : Colors.white.withValues(alpha: 0.9),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: isDark
+                ? AppColors.borderDark.withValues(alpha: 0.3)
+                : AppColors.borderLight.withValues(alpha: 0.4),
+            width: 0.5,
           ),
-        ],
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.06),
+              blurRadius: 12,
+              offset: const Offset(0, -2),
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Font size row
+            Row(
+              children: [
+                Icon(
+                  Icons.text_fields_rounded,
+                  size: 15,
+                  color: isDark
+                      ? AppColors.textTertiaryDark
+                      : AppColors.textTertiaryLight,
+                ),
+                Expanded(
+                  child: SliderTheme(
+                    data: SliderTheme.of(context).copyWith(
+                      trackHeight: 3,
+                      thumbShape: const RoundSliderThumbShape(
+                        enabledThumbRadius: 7,
+                      ),
+                      overlayShape: const RoundSliderOverlayShape(
+                        overlayRadius: 16,
+                      ),
+                    ),
+                    child: Slider(
+                      value: fontSize,
+                      min: AppConstants.minFontSize,
+                      max: AppConstants.maxFontSize,
+                      divisions: 15,
+                      activeColor: AppColors.primary,
+                      inactiveColor:
+                          AppColors.primary.withValues(alpha: 0.15),
+                      onChanged: onFontSizeChanged,
+                    ),
+                  ),
+                ),
+                Icon(
+                  Icons.text_fields_rounded,
+                  size: 22,
+                  color: isDark
+                      ? AppColors.textTertiaryDark
+                      : AppColors.textTertiaryLight,
+                ),
+                const SizedBox(width: 12),
+
+                // Translation toggle
+                _ControlButton(
+                  icon: Icons.translate_rounded,
+                  isActive: showTranslation,
+                  label: 'ترجمة',
+                  onTap: onToggleTranslation,
+                  isDark: isDark,
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -794,45 +1019,57 @@ class _ControlButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding:
-            const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        decoration: BoxDecoration(
-          color: isActive
-              ? AppColors.primary.withValues(alpha: 0.15)
-              : (isDark
-                  ? AppColors.surfaceVariantDark
-                  : AppColors.surfaceVariantLight),
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 250),
+          curve: Curves.easeOutCubic,
+          padding:
+              const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+          decoration: BoxDecoration(
             color: isActive
-                ? AppColors.primary.withValues(alpha: 0.5)
-                : Colors.transparent,
+                ? AppColors.primary.withValues(alpha: isDark ? 0.2 : 0.12)
+                : (isDark
+                    ? AppColors.surfaceVariantDark.withValues(alpha: 0.6)
+                    : AppColors.surfaceVariantLight),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: isActive
+                  ? AppColors.primary.withValues(alpha: 0.4)
+                  : Colors.transparent,
+              width: 1,
+            ),
           ),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              icon,
-              size: 18,
-              color:
-                  isActive ? AppColors.primary : AppColors.textTertiaryLight,
-            ),
-            const SizedBox(width: 4),
-            Text(
-              label,
-              style: AppTextStyles.labelSmall.copyWith(
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                icon,
+                size: 17,
                 color: isActive
-                    ? AppColors.primary
-                    : AppColors.textTertiaryLight,
-                fontFamily: 'Amiri',
+                    ? (isDark ? AppColors.primaryLight : AppColors.primary)
+                    : (isDark
+                        ? AppColors.textTertiaryDark
+                        : AppColors.textTertiaryLight),
               ),
-            ),
-          ],
+              const SizedBox(width: 5),
+              Text(
+                label,
+                style: AppTextStyles.labelSmall.copyWith(
+                  color: isActive
+                      ? (isDark ? AppColors.primaryLight : AppColors.primary)
+                      : (isDark
+                          ? AppColors.textTertiaryDark
+                          : AppColors.textTertiaryLight),
+                  fontFamily: 'Amiri',
+                  fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

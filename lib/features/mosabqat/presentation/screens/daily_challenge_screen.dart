@@ -9,8 +9,9 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_text_styles.dart';
 import '../providers/mosabqat_providers.dart';
 
-/// Daily challenge screen - a curated set of 10 mixed questions that refresh daily.
-/// Includes streak bonus tracking and completion state.
+/// Daily challenge screen with gamified modern design.
+/// Features animated counters, streak displays, gradient hero banner,
+/// and tappable challenge cards.
 class DailyChallengeScreen extends ConsumerWidget {
   const DailyChallengeScreen({super.key});
 
@@ -21,153 +22,159 @@ class DailyChallengeScreen extends ConsumerWidget {
     final isCompleted = ref.watch(dailyChallengeCompletedProvider);
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(
-          'تحدي اليوم',
-          style: AppTextStyles.arabicHeadline.copyWith(
-            color: AppColors.secondary,
+      backgroundColor:
+          isDark ? AppColors.backgroundDark : AppColors.backgroundLight,
+      body: CustomScrollView(
+        slivers: [
+          // ── Collapsing hero header ──
+          SliverAppBar(
+            expandedHeight: 260,
+            pinned: true,
+            backgroundColor:
+                isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
+            flexibleSpace: FlexibleSpaceBar(
+              background: _HeroBanner(
+                  isCompleted: isCompleted, isDark: isDark),
+            ),
+            title: Text(
+              'تحدي اليوم',
+              style: AppTextStyles.arabicBody.copyWith(
+                color: Colors.white,
+                fontWeight: FontWeight.w700,
+                fontSize: 16,
+              ),
+              textDirection: TextDirection.rtl,
+            ),
+            centerTitle: true,
           ),
+
+          // ── Content ──
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+            sliver: SliverList(
+              delegate: SliverChildListDelegate([
+                // ── Streak stats ──
+                _StreakStatsRow(
+                  streak: stats.currentStreak,
+                  bestStreak: stats.bestStreak,
+                  dailyCompleted: stats.dailyChallengesCompleted,
+                  isDark: isDark,
+                ),
+                const SizedBox(height: 20),
+
+                // ── Challenge details ──
+                _ChallengeDetailsCard(isDark: isDark),
+                const SizedBox(height: 20),
+
+                // ── Streak bonus progress ──
+                _StreakBonusCard(
+                    streak: stats.currentStreak, isDark: isDark),
+                const SizedBox(height: 28),
+
+                // ── Action button ──
+                if (!isCompleted)
+                  _StartButton(
+                    onPressed: () {
+                      ref
+                          .read(quizSessionProvider.notifier)
+                          .startDailyChallenge();
+                      context.pushNamed(RouteNames.quizPlay);
+                    },
+                  )
+                else
+                  _CompletedButton(
+                    onPressed: () => context.pop(),
+                  ),
+
+                SizedBox(height: context.bottomPadding + 20),
+              ]),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Hero Banner ──────────────────────────────────────────────────────────────
+
+class _HeroBanner extends StatelessWidget {
+  final bool isCompleted;
+  final bool isDark;
+
+  const _HeroBanner({required this.isCompleted, required this.isDark});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topRight,
+          end: Alignment.bottomLeft,
+          colors: [AppColors.secondary, AppColors.secondaryDark],
         ),
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            // ── Hero Banner ──
-            Container(
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  begin: Alignment.topRight,
-                  end: Alignment.bottomLeft,
-                  colors: [AppColors.secondary, AppColors.secondaryDark],
+      child: SafeArea(
+        bottom: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(24, 60, 24, 24),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              Container(
+                width: 80,
+                height: 80,
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(24),
                 ),
-                borderRadius: BorderRadius.circular(24),
-                boxShadow: [
-                  BoxShadow(
-                    color: AppColors.secondary.withValues(alpha: 0.3),
-                    blurRadius: 16,
-                    offset: const Offset(0, 6),
-                  ),
-                ],
-              ),
-              child: Column(
-                children: [
-                  if (isCompleted)
-                    const Icon(Icons.check_circle_rounded,
-                        size: 64, color: Colors.white)
-                  else
-                    const Icon(Icons.emoji_events,
-                        size: 64, color: Colors.white),
-                  const SizedBox(height: 12),
-                  Text(
-                    isCompleted
-                        ? 'أتممت تحدي اليوم! 🎉'
-                        : 'تحدي اليوم',
-                    style: AppTextStyles.arabicHeadline.copyWith(
-                      color: Colors.white,
-                      fontSize: 24,
-                    ),
-                    textDirection: TextDirection.rtl,
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    isCompleted
-                        ? 'ارجع غداً للتحدي الجديد'
-                        : '١٠ أسئلة متنوعة — هل يمكنك الإجابة عليها جميعاً؟',
-                    style: AppTextStyles.arabicBody.copyWith(
-                      color: Colors.white70,
-                    ),
-                    textDirection: TextDirection.rtl,
-                    textAlign: TextAlign.center,
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 20),
-
-            // ── Streak Section ──
-            _StreakCard(
-              streak: stats.currentStreak,
-              bestStreak: stats.bestStreak,
-              dailyCompleted: stats.dailyChallengesCompleted,
-              isDark: isDark,
-            ),
-            const SizedBox(height: 20),
-
-            // ── Challenge Details ──
-            _ChallengeDetailsCard(isDark: isDark),
-            const SizedBox(height: 20),
-
-            // ── Streak Bonus Info ──
-            _StreakBonusCard(streak: stats.currentStreak, isDark: isDark),
-            const SizedBox(height: 28),
-
-            // ── Start / Completed Button ──
-            if (!isCompleted)
-              ElevatedButton.icon(
-                onPressed: () {
-                  ref
-                      .read(quizSessionProvider.notifier)
-                      .startDailyChallenge();
-                  context.pushNamed(RouteNames.quizPlay);
-                },
-                icon: const Icon(Icons.play_arrow_rounded,
-                    color: Colors.white, size: 26),
-                label: Text(
-                  'ابدأ التحدي',
-                  style: AppTextStyles.arabicBody.copyWith(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w700,
-                    fontSize: 18,
-                  ),
-                ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.secondary,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                ),
-              )
-            else
-              OutlinedButton.icon(
-                onPressed: () => context.pop(),
-                icon: const Icon(Icons.arrow_forward_ios,
-                    color: AppColors.secondary, size: 18),
-                label: Text(
-                  'عد غداً للتحدي الجديد',
-                  style: AppTextStyles.arabicBody.copyWith(
-                    color: AppColors.secondary,
-                  ),
-                ),
-                style: OutlinedButton.styleFrom(
-                  side: const BorderSide(color: AppColors.secondary),
-                  padding: const EdgeInsets.symmetric(vertical: 14),
+                child: Icon(
+                  isCompleted
+                      ? Icons.check_circle_rounded
+                      : Icons.emoji_events_rounded,
+                  size: 44,
+                  color: Colors.white,
                 ),
               ),
-
-            SizedBox(height: context.bottomPadding + 16),
-          ],
+              const SizedBox(height: 16),
+              Text(
+                isCompleted ? 'أتممت تحدي اليوم!' : 'تحدي اليوم',
+                style: AppTextStyles.arabicHeadline.copyWith(
+                  color: Colors.white,
+                  fontSize: 22,
+                ),
+                textDirection: TextDirection.rtl,
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 6),
+              Text(
+                isCompleted
+                    ? 'ارجع غداً للتحدي الجديد'
+                    : '١٠ أسئلة متنوعة — هل يمكنك الإجابة عليها جميعاً؟',
+                style: AppTextStyles.arabicCaption.copyWith(
+                  color: Colors.white.withValues(alpha: 0.75),
+                  fontSize: 13,
+                ),
+                textDirection: TextDirection.rtl,
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 }
 
-// ─────────────────────────────────────────────
-// Streak Card
-// ─────────────────────────────────────────────
+// ── Streak Stats Row ─────────────────────────────────────────────────────────
 
-class _StreakCard extends StatelessWidget {
+class _StreakStatsRow extends StatelessWidget {
   final int streak;
   final int bestStreak;
   final int dailyCompleted;
   final bool isDark;
 
-  const _StreakCard({
+  const _StreakStatsRow({
     required this.streak,
     required this.bestStreak,
     required this.dailyCompleted,
@@ -176,45 +183,101 @@ class _StreakCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: isDark ? AppColors.cardDark : AppColors.cardLight,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: isDark ? AppColors.dividerDark : AppColors.dividerLight,
-        ),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-        children: [
-          _StreakStat(
-            icon: Icons.local_fire_department,
+    return Row(
+      children: [
+        Expanded(
+          child: _StatCard(
+            icon: Icons.local_fire_department_rounded,
             iconColor: AppColors.warning,
             value: '$streak',
             label: 'السلسلة الحالية',
+            isDark: isDark,
           ),
-          Container(
-            width: 1,
-            height: 48,
-            color: isDark ? AppColors.dividerDark : AppColors.dividerLight,
-          ),
-          _StreakStat(
-            icon: Icons.emoji_events,
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: _StatCard(
+            icon: Icons.emoji_events_rounded,
             iconColor: AppColors.secondary,
             value: '$bestStreak',
             label: 'أفضل سلسلة',
+            isDark: isDark,
           ),
-          Container(
-            width: 1,
-            height: 48,
-            color: isDark ? AppColors.dividerDark : AppColors.dividerLight,
-          ),
-          _StreakStat(
-            icon: Icons.check_circle_outline,
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: _StatCard(
+            icon: Icons.check_circle_outline_rounded,
             iconColor: AppColors.success,
             value: '$dailyCompleted',
             label: 'مكتمل',
+            isDark: isDark,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _StatCard extends StatelessWidget {
+  final IconData icon;
+  final Color iconColor;
+  final String value;
+  final String label;
+  final bool isDark;
+
+  const _StatCard({
+    required this.icon,
+    required this.iconColor,
+    required this.value,
+    required this.label,
+    required this.isDark,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.cardDark : AppColors.cardLight,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: isDark ? AppColors.dividerDark : AppColors.dividerLight,
+          width: 0.5,
+        ),
+      ),
+      child: Column(
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: iconColor.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(icon, color: iconColor, size: 22),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            value,
+            style: AppTextStyles.headlineMedium.copyWith(
+              fontWeight: FontWeight.w800,
+              color: isDark
+                  ? AppColors.textPrimaryDark
+                  : AppColors.textPrimaryLight,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            label,
+            style: AppTextStyles.arabicCaption.copyWith(
+              color: isDark
+                  ? AppColors.textTertiaryDark
+                  : AppColors.textTertiaryLight,
+              fontSize: 11,
+            ),
+            textDirection: TextDirection.rtl,
+            textAlign: TextAlign.center,
           ),
         ],
       ),
@@ -222,49 +285,7 @@ class _StreakCard extends StatelessWidget {
   }
 }
 
-class _StreakStat extends StatelessWidget {
-  final IconData icon;
-  final Color iconColor;
-  final String value;
-  final String label;
-
-  const _StreakStat({
-    required this.icon,
-    required this.iconColor,
-    required this.value,
-    required this.label,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon, color: iconColor, size: 24),
-        const SizedBox(height: 4),
-        Text(
-          value,
-          style: AppTextStyles.headlineMedium.copyWith(
-            fontWeight: FontWeight.w700,
-            color: iconColor,
-          ),
-        ),
-        Text(
-          label,
-          style: AppTextStyles.arabicCaption.copyWith(
-            color: AppColors.textTertiaryLight,
-            fontSize: 11,
-          ),
-          textDirection: TextDirection.rtl,
-        ),
-      ],
-    );
-  }
-}
-
-// ─────────────────────────────────────────────
-// Challenge Details Card
-// ─────────────────────────────────────────────
+// ── Challenge Details Card ───────────────────────────────────────────────────
 
 class _ChallengeDetailsCard extends StatelessWidget {
   final bool isDark;
@@ -277,32 +298,33 @@ class _ChallengeDetailsCard extends StatelessWidget {
       (
         icon: Icons.quiz_rounded,
         label: '${AppConstants.dailyChallengeQuestionCount} أسئلة متنوعة',
-        color: AppColors.primary
+        color: AppColors.primary,
       ),
       (
         icon: Icons.category_rounded,
         label: 'جميع الفئات مجتمعة',
-        color: AppColors.info
+        color: AppColors.info,
       ),
       (
         icon: Icons.timer_rounded,
         label: '١٥ ثانية لكل سؤال',
-        color: AppColors.warning
+        color: AppColors.warning,
       ),
       (
         icon: Icons.star_rounded,
         label: 'مكافأة سلسلة إضافية',
-        color: AppColors.secondary
+        color: AppColors.secondary,
       ),
     ];
 
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         color: isDark ? AppColors.cardDark : AppColors.cardLight,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(20),
         border: Border.all(
           color: isDark ? AppColors.dividerDark : AppColors.dividerLight,
+          width: 0.5,
         ),
       ),
       child: Column(
@@ -312,13 +334,15 @@ class _ChallengeDetailsCard extends StatelessWidget {
             'تفاصيل التحدي',
             style: AppTextStyles.arabicBody.copyWith(
               fontWeight: FontWeight.w700,
-              color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+              color: isDark
+                  ? AppColors.textPrimaryDark
+                  : AppColors.textPrimaryLight,
             ),
             textDirection: TextDirection.rtl,
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 14),
           ...details.map((d) => Padding(
-                padding: const EdgeInsets.only(bottom: 10),
+                padding: const EdgeInsets.only(bottom: 12),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
@@ -331,15 +355,15 @@ class _ChallengeDetailsCard extends StatelessWidget {
                       ),
                       textDirection: TextDirection.rtl,
                     ),
-                    const SizedBox(width: 10),
+                    const SizedBox(width: 12),
                     Container(
-                      width: 34,
-                      height: 34,
+                      width: 38,
+                      height: 38,
                       decoration: BoxDecoration(
                         color: d.color.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(8),
+                        borderRadius: BorderRadius.circular(12),
                       ),
-                      child: Icon(d.icon, color: d.color, size: 18),
+                      child: Icon(d.icon, color: d.color, size: 20),
                     ),
                   ],
                 ),
@@ -350,9 +374,7 @@ class _ChallengeDetailsCard extends StatelessWidget {
   }
 }
 
-// ─────────────────────────────────────────────
-// Streak Bonus Card
-// ─────────────────────────────────────────────
+// ── Streak Bonus Card ────────────────────────────────────────────────────────
 
 class _StreakBonusCard extends StatelessWidget {
   final int streak;
@@ -383,10 +405,17 @@ class _StreakBonusCard extends StatelessWidget {
                     : 750;
 
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: AppColors.secondary.withValues(alpha: 0.06),
-        borderRadius: BorderRadius.circular(16),
+        gradient: LinearGradient(
+          begin: Alignment.topRight,
+          end: Alignment.bottomLeft,
+          colors: [
+            AppColors.secondary.withValues(alpha: 0.08),
+            AppColors.secondary.withValues(alpha: 0.03),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(20),
         border: Border.all(
           color: AppColors.secondary.withValues(alpha: 0.2),
         ),
@@ -399,10 +428,10 @@ class _StreakBonusCard extends StatelessWidget {
             children: [
               Container(
                 padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
                 decoration: BoxDecoration(
                   color: AppColors.secondary.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
                   '+ $bonusXP XP',
@@ -412,35 +441,137 @@ class _StreakBonusCard extends StatelessWidget {
                   ),
                 ),
               ),
-              Text(
-                'مكافأة السلسلة',
-                style: AppTextStyles.arabicBody.copyWith(
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.secondary,
-                ),
-                textDirection: TextDirection.rtl,
+              Row(
+                children: [
+                  Text(
+                    'مكافأة السلسلة',
+                    style: AppTextStyles.arabicBody.copyWith(
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.secondary,
+                    ),
+                    textDirection: TextDirection.rtl,
+                  ),
+                  const SizedBox(width: 6),
+                  const Icon(Icons.local_fire_department_rounded,
+                      color: AppColors.secondary, size: 20),
+                ],
               ),
             ],
           ),
-          const SizedBox(height: 10),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(6),
-            child: LinearProgressIndicator(
-              value: progress.clamp(0.0, 1.0),
-              backgroundColor: AppColors.secondary.withValues(alpha: 0.15),
-              valueColor: const AlwaysStoppedAnimation(AppColors.secondary),
-              minHeight: 8,
-            ),
+          const SizedBox(height: 14),
+          // Progress bar
+          Stack(
+            children: [
+              Container(
+                height: 10,
+                decoration: BoxDecoration(
+                  color: AppColors.secondary.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(5),
+                ),
+              ),
+              FractionallySizedBox(
+                widthFactor: progress.clamp(0.0, 1.0),
+                child: Container(
+                  height: 10,
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [
+                        AppColors.secondary,
+                        AppColors.secondaryLight,
+                      ],
+                    ),
+                    borderRadius: BorderRadius.circular(5),
+                  ),
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 8),
           Text(
             'أكمل $nextMilestone يومًا متتاليًا للحصول على $bonusXP نقطة XP إضافية',
             style: AppTextStyles.arabicCaption.copyWith(
-              color: AppColors.secondary.withValues(alpha: 0.8),
+              color: AppColors.secondary.withValues(alpha: 0.7),
+              fontSize: 12,
             ),
             textDirection: TextDirection.rtl,
           ),
         ],
+      ),
+    );
+  }
+}
+
+// ── Buttons ──────────────────────────────────────────────────────────────────
+
+class _StartButton extends StatelessWidget {
+  final VoidCallback onPressed;
+
+  const _StartButton({required this.onPressed});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onPressed,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 18),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [AppColors.secondary, AppColors.secondaryDark],
+          ),
+          borderRadius: BorderRadius.circular(18),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.secondary.withValues(alpha: 0.3),
+              blurRadius: 14,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              'ابدأ التحدي',
+              style: AppTextStyles.arabicBody.copyWith(
+                color: Colors.white,
+                fontWeight: FontWeight.w700,
+                fontSize: 18,
+              ),
+              textDirection: TextDirection.rtl,
+            ),
+            const SizedBox(width: 8),
+            const Icon(Icons.play_arrow_rounded,
+                color: Colors.white, size: 26),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _CompletedButton extends StatelessWidget {
+  final VoidCallback onPressed;
+
+  const _CompletedButton({required this.onPressed});
+
+  @override
+  Widget build(BuildContext context) {
+    return OutlinedButton.icon(
+      onPressed: onPressed,
+      icon: const Icon(Icons.arrow_forward_ios_rounded,
+          color: AppColors.secondary, size: 18),
+      label: Text(
+        'عد غداً للتحدي الجديد',
+        style: AppTextStyles.arabicBody.copyWith(
+          color: AppColors.secondary,
+        ),
+      ),
+      style: OutlinedButton.styleFrom(
+        side: const BorderSide(color: AppColors.secondary),
+        padding: const EdgeInsets.symmetric(vertical: 16),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(18),
+        ),
       ),
     );
   }

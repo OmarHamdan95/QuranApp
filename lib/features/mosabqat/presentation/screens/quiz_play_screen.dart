@@ -11,9 +11,9 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_text_styles.dart';
 import '../providers/mosabqat_providers.dart';
 
-/// Active quiz gameplay screen.
-/// Features: animated circular countdown timer, 4-option MCQ,
-/// correct/incorrect feedback, progress bar, score counter.
+/// Active quiz gameplay screen with gamified modern design.
+/// Features: animated circular countdown, tappable answer cards with
+/// selection animation, progress indicator, score counter.
 class QuizPlayScreen extends ConsumerStatefulWidget {
   const QuizPlayScreen({super.key});
 
@@ -22,7 +22,7 @@ class QuizPlayScreen extends ConsumerStatefulWidget {
 }
 
 class _QuizPlayScreenState extends ConsumerState<QuizPlayScreen>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   int? _selectedAnswer;
   bool _answered = false;
   int _timeRemaining = 0;
@@ -31,17 +31,22 @@ class _QuizPlayScreenState extends ConsumerState<QuizPlayScreen>
   Timer? _timer;
   late AnimationController _feedbackController;
   late Animation<double> _feedbackAnimation;
+  late AnimationController _timerAnimController;
 
   @override
   void initState() {
     super.initState();
     _feedbackController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 400),
+      duration: const Duration(milliseconds: 500),
     );
     _feedbackAnimation = CurvedAnimation(
       parent: _feedbackController,
       curve: Curves.elasticOut,
+    );
+    _timerAnimController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 1),
     );
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _startQuestion();
@@ -52,6 +57,7 @@ class _QuizPlayScreenState extends ConsumerState<QuizPlayScreen>
   void dispose() {
     _timer?.cancel();
     _feedbackController.dispose();
+    _timerAnimController.dispose();
     super.dispose();
   }
 
@@ -109,7 +115,8 @@ class _QuizPlayScreenState extends ConsumerState<QuizPlayScreen>
     _timer?.cancel();
 
     final timeTaken =
-        (DateTime.now().millisecondsSinceEpoch - _questionStartTime) ~/ 1000;
+        (DateTime.now().millisecondsSinceEpoch - _questionStartTime) ~/
+            1000;
 
     setState(() {
       _selectedAnswer = index;
@@ -128,7 +135,8 @@ class _QuizPlayScreenState extends ConsumerState<QuizPlayScreen>
       if (session == null) return;
 
       if (session.isFinished) {
-        final result = ref.read(quizSessionProvider.notifier).buildResult();
+        final result =
+            ref.read(quizSessionProvider.notifier).buildResult();
         if (result != null) {
           ref.read(mosabqatStatsProvider.notifier).recordResult(result);
           ref.read(lastQuizResultProvider.notifier).state = result;
@@ -158,7 +166,8 @@ class _QuizPlayScreenState extends ConsumerState<QuizPlayScreen>
 
     final question = session.currentQuestion!;
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final timerFraction = _maxTime > 0 ? _timeRemaining / _maxTime : 0.0;
+    final timerFraction =
+        _maxTime > 0 ? _timeRemaining / _maxTime : 0.0;
     final timerColor = timerFraction > 0.5
         ? AppColors.success
         : timerFraction > 0.25
@@ -166,28 +175,55 @@ class _QuizPlayScreenState extends ConsumerState<QuizPlayScreen>
             : AppColors.error;
 
     return Scaffold(
+      backgroundColor:
+          isDark ? AppColors.backgroundDark : AppColors.backgroundLight,
       appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.close),
+          icon: Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: isDark
+                  ? AppColors.surfaceVariantDark
+                  : AppColors.surfaceVariantLight,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(
+              Icons.close_rounded,
+              size: 18,
+              color: isDark
+                  ? AppColors.textPrimaryDark
+                  : AppColors.textPrimaryLight,
+            ),
+          ),
           onPressed: () {
             _timer?.cancel();
             ref.read(quizSessionProvider.notifier).reset();
             context.pop();
           },
         ),
-        title: _ProgressIndicatorBar(
+        title: _ProgressBar(
           current: session.currentIndex,
           total: session.questions.length,
+          isDark: isDark,
         ),
         actions: [
           Padding(
             padding: const EdgeInsets.only(left: 12),
             child: Center(
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
-                  color: AppColors.secondary.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(12),
+                  gradient: LinearGradient(
+                    colors: [
+                      AppColors.secondary.withValues(alpha: 0.15),
+                      AppColors.secondary.withValues(alpha: 0.08),
+                    ],
+                  ),
+                  borderRadius: BorderRadius.circular(14),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
@@ -196,20 +232,19 @@ class _QuizPlayScreenState extends ConsumerState<QuizPlayScreen>
                       '${session.score}',
                       style: AppTextStyles.labelLarge.copyWith(
                         color: AppColors.secondary,
-                        fontWeight: FontWeight.w700,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 16,
                       ),
                     ),
                     const SizedBox(width: 4),
                     const Icon(Icons.star_rounded,
-                        color: AppColors.secondary, size: 16),
+                        color: AppColors.secondary, size: 18),
                   ],
                 ),
               ),
             ),
           ),
         ],
-        backgroundColor: Colors.transparent,
-        elevation: 0,
       ),
       body: Padding(
         padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
@@ -222,54 +257,78 @@ class _QuizPlayScreenState extends ConsumerState<QuizPlayScreen>
                 fraction: timerFraction.clamp(0.0, 1.0),
                 seconds: _timeRemaining,
                 color: timerColor,
-              ),
-            ),
-            const SizedBox(height: 16),
-
-            // ── Question ──
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: isDark
-                    ? AppColors.quranPageBackgroundDark
-                    : AppColors.quranPageBackground,
-                borderRadius: BorderRadius.circular(20),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.06),
-                    blurRadius: 10,
-                    offset: const Offset(0, 3),
-                  ),
-                ],
-              ),
-              child: Text(
-                question.questionText,
-                style: AppTextStyles.arabicBody.copyWith(
-                  fontSize: 19,
-                  fontWeight: FontWeight.w700,
-                  height: 1.8,
-                  color: isDark
-                      ? AppColors.quranTextColorDark
-                      : AppColors.quranTextColor,
-                ),
-                textAlign: TextAlign.center,
-                textDirection: TextDirection.rtl,
+                isDark: isDark,
               ),
             ),
             const SizedBox(height: 20),
 
-            // ── Answers ──
+            // ── Question card ──
+            Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: isDark
+                    ? AppColors.quranPageBackgroundDark
+                    : AppColors.quranPageBackground,
+                borderRadius: BorderRadius.circular(24),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: isDark ? 0.15 : 0.05),
+                    blurRadius: 16,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Column(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      'السؤال ${session.currentIndex + 1}',
+                      style: AppTextStyles.arabicCaption.copyWith(
+                        color: AppColors.primary,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 12,
+                      ),
+                      textDirection: TextDirection.rtl,
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  Text(
+                    question.questionText,
+                    style: AppTextStyles.arabicBody.copyWith(
+                      fontSize: 19,
+                      fontWeight: FontWeight.w700,
+                      height: 1.8,
+                      color: isDark
+                          ? AppColors.quranTextColorDark
+                          : AppColors.quranTextColor,
+                    ),
+                    textAlign: TextAlign.center,
+                    textDirection: TextDirection.rtl,
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
+
+            // ── Answer options ──
             Expanded(
               child: ListView.separated(
                 physics: const NeverScrollableScrollPhysics(),
                 itemCount: question.options.length,
                 separatorBuilder: (_, __) => const SizedBox(height: 10),
                 itemBuilder: (context, index) {
-                  return _AnswerOption(
+                  return _AnswerCard(
                     index: index,
                     text: question.options[index],
                     isSelected: _selectedAnswer == index,
-                    isCorrect: _answered && index == question.correctIndex,
+                    isCorrect:
+                        _answered && index == question.correctIndex,
                     isWrong: _answered &&
                         _selectedAnswer == index &&
                         index != question.correctIndex,
@@ -286,35 +345,48 @@ class _QuizPlayScreenState extends ConsumerState<QuizPlayScreen>
             if (_answered) ...[
               const SizedBox(height: 8),
               AnimatedOpacity(
-                opacity: _answered ? 1.0 : 0.0,
+                opacity: 1.0,
                 duration: const Duration(milliseconds: 400),
-                child: Text(
-                  question.reference,
-                  style: AppTextStyles.arabicCaption.copyWith(
-                    color: AppColors.textTertiaryLight,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 16, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: isDark
+                        ? AppColors.surfaceVariantDark
+                        : AppColors.surfaceVariantLight,
+                    borderRadius: BorderRadius.circular(14),
                   ),
-                  textAlign: TextAlign.center,
-                  textDirection: TextDirection.rtl,
+                  child: Column(
+                    children: [
+                      Text(
+                        question.reference,
+                        style: AppTextStyles.arabicCaption.copyWith(
+                          color: isDark
+                              ? AppColors.textTertiaryDark
+                              : AppColors.textTertiaryLight,
+                        ),
+                        textAlign: TextAlign.center,
+                        textDirection: TextDirection.rtl,
+                      ),
+                      if (question.explanation != null) ...[
+                        const SizedBox(height: 4),
+                        Text(
+                          question.explanation!,
+                          style: AppTextStyles.arabicCaption.copyWith(
+                            color: isDark
+                                ? AppColors.textTertiaryDark
+                                : AppColors.textTertiaryLight,
+                            fontStyle: FontStyle.italic,
+                            fontSize: 12,
+                          ),
+                          textAlign: TextAlign.center,
+                          textDirection: TextDirection.rtl,
+                        ),
+                      ],
+                    ],
+                  ),
                 ),
               ),
-              if (question.explanation != null)
-                AnimatedOpacity(
-                  opacity: _answered ? 1.0 : 0.0,
-                  duration: const Duration(milliseconds: 600),
-                  child: Padding(
-                    padding: const EdgeInsets.only(top: 4),
-                    child: Text(
-                      question.explanation!,
-                      style: AppTextStyles.arabicCaption.copyWith(
-                        color: AppColors.textTertiaryLight,
-                        fontStyle: FontStyle.italic,
-                        fontSize: 12,
-                      ),
-                      textAlign: TextAlign.center,
-                      textDirection: TextDirection.rtl,
-                    ),
-                  ),
-                ),
             ],
           ],
         ),
@@ -323,25 +395,43 @@ class _QuizPlayScreenState extends ConsumerState<QuizPlayScreen>
   }
 }
 
-// ─────────────────────────────────────────────
-// Progress Indicator in AppBar
-// ─────────────────────────────────────────────
+// ── Progress Bar ─────────────────────────────────────────────────────────────
 
-class _ProgressIndicatorBar extends StatelessWidget {
+class _ProgressBar extends StatelessWidget {
   final int current;
   final int total;
+  final bool isDark;
 
-  const _ProgressIndicatorBar({required this.current, required this.total});
+  const _ProgressBar({
+    required this.current,
+    required this.total,
+    required this.isDark,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Row(
-      mainAxisSize: MainAxisSize.min,
       children: [
         Text(
-          '${current + 1} / $total',
-          style: AppTextStyles.titleMedium.copyWith(
-            color: AppColors.textSecondaryLight,
+          '${current + 1}/$total',
+          style: AppTextStyles.labelSmall.copyWith(
+            color: isDark
+                ? AppColors.textTertiaryDark
+                : AppColors.textTertiaryLight,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(4),
+            child: LinearProgressIndicator(
+              value: (current + 1) / total,
+              backgroundColor: AppColors.primary.withValues(alpha: 0.1),
+              valueColor:
+                  const AlwaysStoppedAnimation(AppColors.primary),
+              minHeight: 6,
+            ),
           ),
         ),
       ],
@@ -349,43 +439,61 @@ class _ProgressIndicatorBar extends StatelessWidget {
   }
 }
 
-// ─────────────────────────────────────────────
-// Circular Timer
-// ─────────────────────────────────────────────
+// ── Circular Timer ───────────────────────────────────────────────────────────
 
 class _CircularTimer extends StatelessWidget {
   final double fraction;
   final int seconds;
   final Color color;
+  final bool isDark;
 
   const _CircularTimer({
     required this.fraction,
     required this.seconds,
     required this.color,
+    required this.isDark,
   });
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      width: 72,
-      height: 72,
+    return Container(
+      width: 80,
+      height: 80,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: color.withValues(alpha: 0.06),
+      ),
       child: Stack(
         alignment: Alignment.center,
         children: [
           CustomPaint(
-            size: const Size(72, 72),
+            size: const Size(80, 80),
             painter: _TimerPainter(
               fraction: fraction,
               color: color,
-              backgroundColor: color.withValues(alpha: 0.12),
+              backgroundColor: color.withValues(alpha: 0.15),
             ),
           ),
-          Text(
-            '$seconds',
-            style: AppTextStyles.headlineMedium.copyWith(
-              color: color,
-              fontWeight: FontWeight.w800,
-            ),
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                '$seconds',
+                style: AppTextStyles.headlineMedium.copyWith(
+                  color: color,
+                  fontWeight: FontWeight.w800,
+                  fontSize: 26,
+                ),
+              ),
+              Text(
+                'ثانية',
+                style: AppTextStyles.arabicCaption.copyWith(
+                  color: color.withValues(alpha: 0.6),
+                  fontSize: 10,
+                ),
+                textDirection: TextDirection.rtl,
+              ),
+            ],
           ),
         ],
       ),
@@ -408,9 +516,8 @@ class _TimerPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final center = Offset(size.width / 2, size.height / 2);
     final radius = size.width / 2 - 5;
-    final strokeWidth = 5.0;
+    const strokeWidth = 5.0;
 
-    // Background circle
     final bgPaint = Paint()
       ..color = backgroundColor
       ..style = PaintingStyle.stroke
@@ -418,7 +525,6 @@ class _TimerPainter extends CustomPainter {
       ..strokeCap = StrokeCap.round;
     canvas.drawCircle(center, radius, bgPaint);
 
-    // Progress arc
     final fgPaint = Paint()
       ..color = color
       ..style = PaintingStyle.stroke
@@ -439,11 +545,9 @@ class _TimerPainter extends CustomPainter {
       oldDelegate.fraction != fraction || oldDelegate.color != color;
 }
 
-// ─────────────────────────────────────────────
-// Answer Option
-// ─────────────────────────────────────────────
+// ── Answer Card ──────────────────────────────────────────────────────────────
 
-class _AnswerOption extends StatelessWidget {
+class _AnswerCard extends StatelessWidget {
   final int index;
   final String text;
   final bool isSelected;
@@ -454,7 +558,7 @@ class _AnswerOption extends StatelessWidget {
   final Animation<double> feedbackAnimation;
   final VoidCallback onTap;
 
-  const _AnswerOption({
+  const _AnswerCard({
     required this.index,
     required this.text,
     required this.isSelected,
@@ -471,67 +575,112 @@ class _AnswerOption extends StatelessWidget {
     Color borderColor;
     Color bgColor;
     Color textColor;
+    Color labelBgColor;
     Widget? trailingIcon;
 
     if (isCorrect) {
       borderColor = AppColors.success;
-      bgColor = AppColors.success.withValues(alpha: 0.1);
+      bgColor = AppColors.success.withValues(alpha: 0.08);
       textColor = AppColors.success;
+      labelBgColor = AppColors.success.withValues(alpha: 0.15);
       trailingIcon = ScaleTransition(
         scale: feedbackAnimation,
-        child: const Icon(Icons.check_circle_rounded,
-            color: AppColors.success, size: 22),
+        child: Container(
+          width: 28,
+          height: 28,
+          decoration: BoxDecoration(
+            color: AppColors.success.withValues(alpha: 0.15),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: const Icon(Icons.check_rounded,
+              color: AppColors.success, size: 18),
+        ),
       );
     } else if (isWrong) {
       borderColor = AppColors.error;
-      bgColor = AppColors.error.withValues(alpha: 0.08);
+      bgColor = AppColors.error.withValues(alpha: 0.06);
       textColor = AppColors.error;
+      labelBgColor = AppColors.error.withValues(alpha: 0.15);
       trailingIcon = ScaleTransition(
         scale: feedbackAnimation,
-        child: const Icon(Icons.cancel_rounded,
-            color: AppColors.error, size: 22),
+        child: Container(
+          width: 28,
+          height: 28,
+          decoration: BoxDecoration(
+            color: AppColors.error.withValues(alpha: 0.15),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: const Icon(Icons.close_rounded,
+              color: AppColors.error, size: 18),
+        ),
       );
     } else {
-      borderColor = isDark ? AppColors.dividerDark : AppColors.dividerLight;
+      borderColor =
+          isDark ? AppColors.dividerDark : AppColors.dividerLight;
       bgColor = isDark ? AppColors.cardDark : AppColors.cardLight;
-      textColor = isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight;
+      textColor = isDark
+          ? AppColors.textPrimaryDark
+          : AppColors.textPrimaryLight;
+      labelBgColor = isDark
+          ? AppColors.surfaceVariantDark
+          : AppColors.surfaceVariantLight;
     }
 
-    final label = String.fromCharCode(0x0041 + index); // A, B, C, D
+    // Arabic letter labels
+    const labels = ['أ', 'ب', 'ج', 'د'];
+    final label = index < labels.length ? labels[index] : '${index + 1}';
 
     return Material(
       color: Colors.transparent,
       child: InkWell(
         onTap: isAnswered ? null : onTap,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(18),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 250),
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+          padding:
+              const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
           decoration: BoxDecoration(
             color: bgColor,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: borderColor, width: 1.5),
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(
+                color: borderColor,
+                width: isCorrect || isWrong ? 2 : 1),
+            boxShadow: isSelected && !isAnswered
+                ? [
+                    BoxShadow(
+                      color: AppColors.primary.withValues(alpha: 0.15),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ]
+                : null,
           ),
           child: Row(
             children: [
-              // Answer label circle
+              // Answer label
               Container(
-                width: 34,
-                height: 34,
+                width: 36,
+                height: 36,
                 decoration: BoxDecoration(
-                  color: borderColor.withValues(alpha: 0.15),
-                  shape: BoxShape.circle,
+                  color: labelBgColor,
+                  borderRadius: BorderRadius.circular(10),
                 ),
                 alignment: Alignment.center,
                 child: Text(
                   label,
-                  style: AppTextStyles.labelLarge.copyWith(
-                    color: borderColor,
+                  style: AppTextStyles.arabicBody.copyWith(
+                    color: isCorrect || isWrong
+                        ? (isCorrect ? AppColors.success : AppColors.error)
+                        : isDark
+                            ? AppColors.textSecondaryDark
+                            : AppColors.textSecondaryLight,
                     fontWeight: FontWeight.w700,
+                    fontSize: 16,
                   ),
+                  textDirection: TextDirection.rtl,
                 ),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 14),
 
               // Answer text
               Expanded(
@@ -539,9 +688,11 @@ class _AnswerOption extends StatelessWidget {
                   text,
                   style: AppTextStyles.arabicBody.copyWith(
                     color: textColor,
-                    fontWeight:
-                        isCorrect || isWrong ? FontWeight.w700 : FontWeight.w400,
+                    fontWeight: isCorrect || isWrong
+                        ? FontWeight.w700
+                        : FontWeight.w400,
                     height: 1.5,
+                    fontSize: 16,
                   ),
                   textDirection: TextDirection.rtl,
                 ),
