@@ -12,80 +12,122 @@ import '../widgets/prayer_countdown_widget.dart';
 
 /// Home screen / dashboard of the Quran App.
 ///
-/// Shows daily ayah, last reading position, prayer countdown,
-/// and quick-access grid for all features.
+/// Displays:
+/// - Personalised greeting
+/// - Daily Ayah card
+/// - Prayer countdown
+/// - Last-read resume card
+/// - Quick-access feature grid
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final isDark = context.isDarkMode;
+    final now = DateTime.now();
+    final greeting = _greeting(now.hour);
 
     return Scaffold(
       body: CustomScrollView(
+        physics: const BouncingScrollPhysics(),
         slivers: [
-          // ── App Bar ──
+          // ── App Bar ───────────────────────────────────────────────
           SliverAppBar(
-            expandedHeight: 80,
+            expandedHeight: 100,
             floating: true,
             snap: true,
-            title: Text(
-              'القرآن الكريم',
-              style: AppTextStyles.arabicHeadline.copyWith(
-                color: AppColors.primary,
+            elevation: 0,
+            backgroundColor:
+                isDark ? AppColors.backgroundDark : AppColors.backgroundLight,
+            flexibleSpace: FlexibleSpaceBar(
+              titlePadding:
+                  const EdgeInsets.only(left: 20, right: 20, bottom: 14),
+              title: Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Expanded(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          greeting,
+                          style: AppTextStyles.bodySmall.copyWith(
+                            color: isDark
+                                ? AppColors.textTertiaryDark
+                                : AppColors.textTertiaryLight,
+                          ),
+                        ),
+                        Text(
+                          'القرآن الكريم',
+                          style: AppTextStyles.arabicHeadline.copyWith(
+                            color: AppColors.primary,
+                            fontSize: 22,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
             ),
             actions: [
               IconButton(
-                icon: const Icon(Icons.search),
+                icon: const Icon(Icons.search_rounded),
+                tooltip: 'بحث',
                 onPressed: () => context.pushNamed(RouteNames.search),
               ),
               IconButton(
                 icon: const Icon(Icons.settings_outlined),
+                tooltip: 'الإعدادات',
                 onPressed: () => context.pushNamed(RouteNames.settings),
               ),
+              const SizedBox(width: 4),
             ],
           ),
 
-          // ── Content ──
+          // ── Content ────────────────────────────────────────────────
           SliverToBoxAdapter(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const SizedBox(height: 8),
+                const SizedBox(height: 4),
 
                 // Daily Ayah
                 const DailyAyahCard(),
-                const SizedBox(height: 4),
 
                 // Prayer Countdown
                 const PrayerCountdownWidget(),
-                const SizedBox(height: 4),
 
                 // Last Read
                 const LastReadCard(),
-                const SizedBox(height: 16),
 
-                // Quick Actions Section Title
+                const SizedBox(height: 20),
+
+                // Quick Actions
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 20),
-                  child: Text(
-                    'الوصول السريع',
-                    style: AppTextStyles.arabicBody.copyWith(
-                      fontWeight: FontWeight.w700,
-                      color: isDark
-                          ? AppColors.textPrimaryDark
-                          : AppColors.textPrimaryLight,
-                    ),
-                    textDirection: TextDirection.rtl,
+                  child: Row(
+                    children: [
+                      Text(
+                        'الوصول السريع',
+                        style: AppTextStyles.arabicBody.copyWith(
+                          fontWeight: FontWeight.w800,
+                          color: isDark
+                              ? AppColors.textPrimaryDark
+                              : AppColors.textPrimaryLight,
+                          fontSize: 16,
+                        ),
+                        textDirection: TextDirection.rtl,
+                      ),
+                    ],
                   ),
                 ),
                 const SizedBox(height: 12),
 
-                // Quick Access Grid
                 _QuickAccessGrid(),
 
-                const SizedBox(height: 100), // Bottom nav padding
+                const SizedBox(height: 100),
               ],
             ),
           ),
@@ -93,54 +135,63 @@ class HomeScreen extends ConsumerWidget {
       ),
     );
   }
+
+  String _greeting(int hour) {
+    if (hour >= 5 && hour < 12) return 'صباح الخير';
+    if (hour >= 12 && hour < 17) return 'مساء الخير';
+    if (hour >= 17 && hour < 21) return 'مساء النور';
+    return 'مرحباً بك';
+  }
 }
 
+// ── Quick Access Grid ─────────────────────────────────────────────────────────
+
 class _QuickAccessGrid extends StatelessWidget {
-  final _items = const <_QuickAccessItem>[
+  static const _items = <_QuickAccessItem>[
     _QuickAccessItem(
-      icon: Icons.menu_book,
+      icon: Icons.menu_book_rounded,
       label: 'القرآن',
       route: RouteNames.surahIndex,
       color: AppColors.primary,
     ),
     _QuickAccessItem(
-      icon: Icons.headphones,
+      icon: Icons.headphones_rounded,
       label: 'الاستماع',
       route: RouteNames.audioPlayer,
       color: AppColors.tertiary,
     ),
     _QuickAccessItem(
-      icon: Icons.mosque,
+      icon: Icons.mosque_rounded,
       label: 'الصلاة',
       route: RouteNames.prayerTimes,
       color: AppColors.fajr,
     ),
     _QuickAccessItem(
-      icon: Icons.explore,
+      icon: Icons.explore_rounded,
       label: 'القبلة',
       route: RouteNames.qibla,
       color: AppColors.maghrib,
     ),
     _QuickAccessItem(
-      icon: Icons.school,
+      icon: Icons.school_rounded,
       label: 'الحفظ',
       route: RouteNames.hifzDashboard,
       color: AppColors.secondary,
     ),
     _QuickAccessItem(
-      icon: Icons.quiz,
+      icon: Icons.quiz_rounded,
       label: 'مسابقات',
       route: RouteNames.mosabqatHome,
       color: AppColors.info,
     ),
     _QuickAccessItem(
-      icon: Icons.bookmark,
+      icon: Icons.bookmark_rounded,
       label: 'الإشارات',
       route: RouteNames.bookmarks,
       color: AppColors.error,
     ),
     _QuickAccessItem(
-      icon: Icons.download,
+      icon: Icons.download_rounded,
       label: 'التحميل',
       route: RouteNames.downloads,
       color: AppColors.success,
@@ -162,8 +213,7 @@ class _QuickAccessGrid extends StatelessWidget {
         ),
         itemCount: _items.length,
         itemBuilder: (context, index) {
-          final item = _items[index];
-          return _QuickAccessTile(item: item);
+          return _QuickAccessTile(item: _items[index]);
         },
       ),
     );
@@ -193,45 +243,51 @@ class _QuickAccessTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDark = context.isDarkMode;
 
-    return InkWell(
-      onTap: () => context.pushNamed(item.route),
+    return Material(
+      color: isDark ? AppColors.cardDark : AppColors.cardLight,
       borderRadius: BorderRadius.circular(16),
-      child: Container(
-        decoration: BoxDecoration(
-          color: isDark ? AppColors.cardDark : AppColors.cardLight,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: isDark ? AppColors.dividerDark : AppColors.dividerLight,
-            width: 0.5,
+      child: InkWell(
+        onTap: () => context.pushNamed(item.route),
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: isDark
+                  ? AppColors.dividerDark
+                  : AppColors.dividerLight,
+              width: 0.5,
+            ),
           ),
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              width: 44,
-              height: 44,
-              decoration: BoxDecoration(
-                color: item.color.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(12),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: item.color.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(item.icon, color: item.color, size: 24),
               ),
-              child: Icon(item.icon, color: item.color, size: 24),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              item.label,
-              style: AppTextStyles.arabicCaption.copyWith(
-                fontWeight: FontWeight.w600,
-                color: isDark
-                    ? AppColors.textPrimaryDark
-                    : AppColors.textPrimaryLight,
+              const SizedBox(height: 8),
+              Text(
+                item.label,
+                style: AppTextStyles.arabicCaption.copyWith(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 12,
+                  color: isDark
+                      ? AppColors.textPrimaryDark
+                      : AppColors.textPrimaryLight,
+                ),
+                textDirection: TextDirection.rtl,
+                textAlign: TextAlign.center,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
-              textDirection: TextDirection.rtl,
-              textAlign: TextAlign.center,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
