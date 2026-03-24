@@ -1,36 +1,42 @@
 import 'package:dartz/dartz.dart';
 import '../entities/reciter.dart';
 
-/// Abstract repository for audio playback operations.
+/// Abstract repository for audio playback and download operations.
 abstract class AudioRepository {
   /// Fetches the list of available reciters.
   Future<Either<AudioFailure, List<Reciter>>> getReciters();
 
-  /// Gets the audio URL for a specific surah and reciter.
+  /// Gets the full-surah audio URL for a specific reciter.
+  /// Pattern: [baseUrl]/[3-digit-surah].mp3
   String getAudioUrl(Reciter reciter, int surahNumber);
 
-  /// Gets the audio URL for a specific ayah.
+  /// Gets the per-ayah audio URL for a specific ayah.
+  /// Uses EveryAyah.com when [Reciter.everyAyahId] is set.
   String getAyahAudioUrl(Reciter reciter, int surahNumber, int ayahNumber);
 
-  /// Downloads a surah audio file for offline playback.
+  /// Downloads a full-surah audio file for offline playback.
+  ///
+  /// [onProgress] is called with a value between 0.0 and 1.0.
   Future<Either<AudioFailure, String>> downloadSurah(
     Reciter reciter,
-    int surahNumber,
-  );
+    int surahNumber, {
+    void Function(double progress)? onProgress,
+  });
 
-  /// Checks if a surah audio file is downloaded.
+  /// Returns true if the surah audio file is already stored locally.
   Future<bool> isSurahDownloaded(int reciterId, int surahNumber);
 
-  /// Deletes a downloaded surah audio file.
+  /// Deletes a downloaded surah audio file from local storage.
   Future<Either<AudioFailure, void>> deleteDownloadedSurah(
     int reciterId,
     int surahNumber,
   );
 
-  /// Gets the local file path for a downloaded surah.
+  /// Returns the local file path if the surah is downloaded, otherwise null.
   Future<String?> getLocalAudioPath(int reciterId, int surahNumber);
 }
 
+/// Represents an error from the audio domain layer.
 class AudioFailure {
   final String message;
   final Object? error;
