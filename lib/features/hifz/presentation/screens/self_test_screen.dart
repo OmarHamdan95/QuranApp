@@ -1,14 +1,41 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_text_styles.dart';
+import '../providers/hifz_providers.dart';
+
+// ─────────────────────────────────────────────
+// Data Types
+// ─────────────────────────────────────────────
+
+class _TestItem {
+  final String prompt;
+  final String answer;
+  final String reference;
+  final String? hint;
+
+  const _TestItem({
+    required this.prompt,
+    required this.answer,
+    required this.reference,
+    this.hint,
+  });
+}
+
+enum _AnswerResult { correct, incorrect, skipped }
+
+// ─────────────────────────────────────────────
+// Self-Test Screen
+// ─────────────────────────────────────────────
 
 /// Self-test screen for reviewing memorized ayahs.
 ///
-/// Shows the beginning of an ayah and asks the user to recite
-/// the continuation, then reveals the full text for self-verification.
+/// Shows the beginning of an ayah, user recites, then reveals to verify.
+/// Tracks score, repeats failed ayahs, and logs the session.
 class SelfTestScreen extends ConsumerStatefulWidget {
   const SelfTestScreen({super.key});
 
@@ -16,290 +43,780 @@ class SelfTestScreen extends ConsumerStatefulWidget {
   ConsumerState<SelfTestScreen> createState() => _SelfTestScreenState();
 }
 
-class _SelfTestScreenState extends ConsumerState<SelfTestScreen> {
+class _SelfTestScreenState extends ConsumerState<SelfTestScreen>
+    with SingleTickerProviderStateMixin {
   bool _isRevealed = false;
   int _currentIndex = 0;
   int _correctCount = 0;
+  int _incorrectCount = 0;
+  bool _isPlaying = false; // simulated audio state
+  bool _isFinished = false;
+  int _elapsedSeconds = 0;
+  Timer? _timer;
+  late AnimationController _revealController;
+  late Animation<double> _revealAnimation;
 
-  // Placeholder test items. In production, these come from the user's
-  // memorized ayahs in the database.
+  // Failed items to repeat
+  final List<int> _failedIndices = [];
+  bool _inRepeatMode = false;
+  List<int> _repeatQueue = [];
+
   static const _testItems = [
-    (
+    _TestItem(
       prompt: 'بِسْمِ ٱللَّهِ ٱلرَّحْمَـٰنِ ٱلرَّحِيمِ ﴿١﴾ ...',
       answer: 'ٱلْحَمْدُ لِلَّهِ رَبِّ ٱلْعَـٰلَمِينَ',
       reference: 'الفاتحة : ٢',
     ),
-    (
+    _TestItem(
       prompt: 'ٱلرَّحْمَـٰنِ ٱلرَّحِيمِ ﴿٣﴾ ...',
       answer: 'مَـٰلِكِ يَوْمِ ٱلدِّينِ',
       reference: 'الفاتحة : ٤',
     ),
-    (
+    _TestItem(
       prompt: 'إِيَّاكَ نَعْبُدُ ...',
       answer: 'وَإِيَّاكَ نَسْتَعِينُ',
       reference: 'الفاتحة : ٥',
     ),
+    _TestItem(
+      prompt: 'ٱهْدِنَا ٱلصِّرَٰطَ ٱلْمُسْتَقِيمَ ﴿٦﴾ ...',
+      answer: 'صِرَٰطَ ٱلَّذِينَ أَنْعَمْتَ عَلَيْهِمْ',
+      reference: 'الفاتحة : ٧',
+    ),
+    _TestItem(
+      prompt: 'قُلْ هُوَ ٱللَّهُ أَحَدٌ ﴿١﴾ ...',
+      answer: 'ٱللَّهُ ٱلصَّمَدُ',
+      reference: 'الإخلاص : ٢',
+      hint: 'من سورة الإخلاص',
+    ),
+    _TestItem(
+      prompt: 'لَمْ يَلِدْ وَلَمْ يُولَدْ ﴿٣﴾ ...',
+      answer: 'وَلَمْ يَكُن لَّهُۥ كُفُوًا أَحَدٌ',
+      reference: 'الإخلاص : ٤',
+    ),
+    _TestItem(
+      prompt: 'إِنَّا أَعْطَيْنَـٰكَ ٱلْكَوْثَرَ ﴿١﴾ ...',
+      answer: 'فَصَلِّ لِرَبِّكَ وَٱنْحَرْ',
+      reference: 'الكوثر : ٢',
+    ),
+    _TestItem(
+      prompt: 'إِذَا جَآءَ نَصْرُ ٱللَّهِ وَٱلْفَتْحُ ﴿١﴾ ...',
+      answer: 'وَرَأَيْتَ ٱلنَّاسَ يَدْخُلُونَ فِى دِينِ ٱللَّهِ أَفْوَاجًا',
+      reference: 'النصر : ٢',
+    ),
   ];
+
+  List<_TestItem> get _currentItems => _inRepeatMode
+      ? _repeatQueue.map((i) => _testItems[i]).toList()
+      : _testItems;
+
+  @override
+  void initState() {
+    super.initState();
+    _revealController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 350),
+    );
+    _revealAnimation = CurvedAnimation(
+      parent: _revealController,
+      curve: Curves.easeOut,
+    );
+    _startTimer();
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    _revealController.dispose();
+    super.dispose();
+  }
+
+  void _startTimer() {
+    _timer?.cancel();
+    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted) setState(() => _elapsedSeconds++);
+    });
+  }
+
+  void _toggleAudio() {
+    setState(() => _isPlaying = !_isPlaying);
+    // In production: trigger text-to-speech or audio player
+    if (_isPlaying) {
+      Future.delayed(const Duration(seconds: 3), () {
+        if (mounted) setState(() => _isPlaying = false);
+      });
+    }
+  }
 
   void _reveal() {
     setState(() => _isRevealed = true);
+    _revealController.forward(from: 0);
   }
 
-  void _markCorrect() {
-    setState(() {
+  void _markResult(_AnswerResult result) {
+    if (result == _AnswerResult.correct) {
       _correctCount++;
-      _isRevealed = false;
-      _currentIndex++;
-    });
+    } else {
+      _incorrectCount++;
+      if (!_inRepeatMode) {
+        _failedIndices.add(_currentIndex);
+      }
+    }
+
+    final nextIndex = _currentIndex + 1;
+
+    if (nextIndex >= _currentItems.length) {
+      _timer?.cancel();
+      if (!_inRepeatMode && _failedIndices.isNotEmpty) {
+        // Offer to repeat failed
+        setState(() {
+          _isRevealed = false;
+          _currentIndex = 0;
+          _isFinished = true;
+        });
+      } else {
+        // Log session
+        ref.read(hifzProvider.notifier).logSession(
+              ayahsStudied: 0,
+              ayahsRevised: _testItems.length,
+              durationMinutes: _elapsedSeconds ~/ 60,
+              accuracyScore: _testItems.isNotEmpty
+                  ? _correctCount / _testItems.length * 100
+                  : 0,
+            );
+        setState(() {
+          _isRevealed = false;
+          _isFinished = true;
+          _inRepeatMode = false;
+        });
+      }
+    } else {
+      setState(() {
+        _currentIndex = nextIndex;
+        _isRevealed = false;
+      });
+      _revealController.reset();
+    }
   }
 
-  void _markIncorrect() {
+  void _startRepeatFailed() {
     setState(() {
+      _inRepeatMode = true;
+      _repeatQueue = List.from(_failedIndices);
+      _failedIndices.clear();
+      _currentIndex = 0;
+      _isFinished = false;
       _isRevealed = false;
-      _currentIndex++;
     });
+    _revealController.reset();
+    _startTimer();
+  }
+
+  void _restart() {
+    setState(() {
+      _currentIndex = 0;
+      _correctCount = 0;
+      _incorrectCount = 0;
+      _isRevealed = false;
+      _isFinished = false;
+      _inRepeatMode = false;
+      _repeatQueue = [];
+      _failedIndices.clear();
+      _elapsedSeconds = 0;
+    });
+    _revealController.reset();
+    _startTimer();
   }
 
   @override
   Widget build(BuildContext context) {
     final isDark = context.isDarkMode;
-    final isFinished = _currentIndex >= _testItems.length;
+
+    if (_isFinished) {
+      return _ResultsScreen(
+        correct: _correctCount,
+        incorrect: _incorrectCount,
+        total: _testItems.length,
+        elapsedSeconds: _elapsedSeconds,
+        failedCount: _failedIndices.length,
+        onRepeatFailed:
+            _failedIndices.isNotEmpty ? _startRepeatFailed : null,
+        onRestart: _restart,
+      );
+    }
+
+    final items = _currentItems;
+    final item = items[_currentIndex];
 
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          'اختبر نفسك',
+          _inRepeatMode ? 'إعادة الخطأ' : 'اختبر نفسك',
           style: AppTextStyles.arabicHeadline.copyWith(color: AppColors.primary),
         ),
         actions: [
-          Center(
-            child: Padding(
-              padding: const EdgeInsets.only(left: 16),
-              child: Text(
-                '${_currentIndex + 1}/${_testItems.length}',
-                style: AppTextStyles.labelLarge.copyWith(
-                  color: AppColors.textTertiaryLight,
-                ),
-              ),
+          // Score counter
+          Padding(
+            padding: const EdgeInsets.only(left: 12, right: 4),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _ScoreBadge(
+                    count: _correctCount, color: AppColors.success, icon: Icons.check),
+                const SizedBox(width: 6),
+                _ScoreBadge(
+                    count: _incorrectCount, color: AppColors.error, icon: Icons.close),
+              ],
             ),
           ),
         ],
       ),
-      body: isFinished
-          ? _ResultsView(
-              correct: _correctCount,
-              total: _testItems.length,
-              onRetry: () {
-                setState(() {
-                  _currentIndex = 0;
-                  _correctCount = 0;
-                  _isRevealed = false;
-                });
-              },
-            )
-          : Padding(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  // Progress
-                  LinearProgressIndicator(
-                    value: _currentIndex / _testItems.length,
-                    backgroundColor: AppColors.primary.withValues(alpha: 0.15),
-                    valueColor: const AlwaysStoppedAnimation(AppColors.primary),
-                    minHeight: 6,
-                    borderRadius: BorderRadius.circular(3),
-                  ),
-                  const SizedBox(height: 24),
+      body: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // Progress bar
+            ClipRRect(
+              borderRadius: BorderRadius.circular(6),
+              child: LinearProgressIndicator(
+                value: (_currentIndex + 1) / items.length,
+                backgroundColor:
+                    AppColors.primary.withValues(alpha: 0.12),
+                valueColor:
+                    const AlwaysStoppedAnimation(AppColors.primary),
+                minHeight: 8,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  '${_currentIndex + 1} / ${items.length}',
+                  style: AppTextStyles.labelSmall
+                      .copyWith(color: AppColors.textTertiaryLight),
+                ),
+                Text(
+                  '${_elapsedSeconds ~/ 60}:${(_elapsedSeconds % 60).toString().padLeft(2, '0')}',
+                  style: AppTextStyles.labelSmall
+                      .copyWith(color: AppColors.textTertiaryLight),
+                ),
+              ],
+            ),
+            const SizedBox(height: 24),
 
-                  // Prompt
+            // Instruction
+            Text(
+              'أكمل الآية التالية:',
+              style: AppTextStyles.arabicBody.copyWith(
+                  color: AppColors.textSecondaryLight),
+              textDirection: TextDirection.rtl,
+            ),
+            const SizedBox(height: 12),
+
+            // Prompt card
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: isDark
+                    ? AppColors.quranPageBackgroundDark
+                    : AppColors.quranPageBackground,
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.06),
+                    blurRadius: 10,
+                    offset: const Offset(0, 3),
+                  ),
+                ],
+              ),
+              child: Column(
+                children: [
                   Text(
-                    'أكمل الآية التالية:',
-                    style: AppTextStyles.arabicBody.copyWith(
-                      color: AppColors.textSecondaryLight,
+                    item.prompt,
+                    style: AppTextStyles.quranAyah.copyWith(
+                      fontSize: 24,
+                      color: isDark
+                          ? AppColors.quranTextColorDark
+                          : AppColors.quranTextColor,
                     ),
+                    textAlign: TextAlign.center,
                     textDirection: TextDirection.rtl,
                   ),
-                  const SizedBox(height: 16),
-
-                  Container(
-                    padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                      color: isDark
-                          ? AppColors.quranPageBackgroundDark
-                          : AppColors.quranPageBackground,
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: Text(
-                      _testItems[_currentIndex].prompt,
-                      style: AppTextStyles.quranAyah.copyWith(
-                        fontSize: 24,
-                        color: isDark
-                            ? AppColors.quranTextColorDark
-                            : AppColors.quranTextColor,
+                  if (item.hint != null) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      '💡 ${item.hint}',
+                      style: AppTextStyles.arabicCaption.copyWith(
+                        color: AppColors.textTertiaryLight,
+                        fontStyle: FontStyle.italic,
                       ),
-                      textAlign: TextAlign.center,
                       textDirection: TextDirection.rtl,
                     ),
-                  ),
-
-                  const SizedBox(height: 20),
-
-                  // Answer area
-                  if (_isRevealed)
-                    Container(
-                      padding: const EdgeInsets.all(20),
-                      decoration: BoxDecoration(
-                        color: AppColors.primary.withValues(alpha: 0.06),
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(
-                          color: AppColors.primary.withValues(alpha: 0.3),
-                        ),
-                      ),
-                      child: Column(
-                        children: [
-                          Text(
-                            _testItems[_currentIndex].answer,
-                            style: AppTextStyles.quranAyah.copyWith(
-                              fontSize: 24,
-                              color: AppColors.primary,
-                            ),
-                            textAlign: TextAlign.center,
-                            textDirection: TextDirection.rtl,
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            _testItems[_currentIndex].reference,
-                            style: AppTextStyles.arabicCaption.copyWith(
-                              color: AppColors.textTertiaryLight,
-                            ),
-                            textDirection: TextDirection.rtl,
-                          ),
-                        ],
-                      ),
-                    ),
-
-                  const Spacer(),
-
-                  // Action buttons
-                  if (!_isRevealed)
-                    ElevatedButton(
-                      onPressed: _reveal,
-                      child: Text(
-                        'كشف الإجابة',
-                        style: AppTextStyles.arabicBody.copyWith(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    )
-                  else
-                    Row(
-                      children: [
-                        Expanded(
-                          child: OutlinedButton.icon(
-                            onPressed: _markIncorrect,
-                            icon: const Icon(Icons.close, color: AppColors.error),
-                            label: Text(
-                              'لم أتذكر',
-                              style: AppTextStyles.arabicCaption.copyWith(
-                                color: AppColors.error,
-                              ),
-                            ),
-                            style: OutlinedButton.styleFrom(
-                              side: const BorderSide(color: AppColors.error),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: ElevatedButton.icon(
-                            onPressed: _markCorrect,
-                            icon: const Icon(Icons.check, color: Colors.white),
-                            label: Text(
-                              'تذكرت',
-                              style: AppTextStyles.arabicCaption.copyWith(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-
-                  SizedBox(height: context.bottomPadding + 16),
+                  ],
                 ],
               ),
             ),
+            const SizedBox(height: 12),
+
+            // Audio play button (simulated)
+            Center(
+              child: InkWell(
+                onTap: _toggleAudio,
+                borderRadius: BorderRadius.circular(40),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 20, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: _isPlaying
+                        ? AppColors.primary.withValues(alpha: 0.12)
+                        : Colors.transparent,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: AppColors.primary.withValues(alpha: 0.3),
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        _isPlaying ? 'يشغّل...' : 'تشغيل الآية',
+                        style: AppTextStyles.arabicCaption.copyWith(
+                          color: AppColors.primary,
+                        ),
+                        textDirection: TextDirection.rtl,
+                      ),
+                      const SizedBox(width: 8),
+                      Icon(
+                        _isPlaying
+                            ? Icons.stop_rounded
+                            : Icons.volume_up_outlined,
+                        color: AppColors.primary,
+                        size: 20,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 20),
+
+            // Revealed answer
+            if (_isRevealed)
+              FadeTransition(
+                opacity: _revealAnimation,
+                child: SizeTransition(
+                  sizeFactor: _revealAnimation,
+                  axisAlignment: -1,
+                  child: Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withValues(alpha: 0.06),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: AppColors.primary.withValues(alpha: 0.3),
+                      ),
+                    ),
+                    child: Column(
+                      children: [
+                        Text(
+                          item.answer,
+                          style: AppTextStyles.quranAyah.copyWith(
+                            fontSize: 24,
+                            color: AppColors.primary,
+                          ),
+                          textAlign: TextAlign.center,
+                          textDirection: TextDirection.rtl,
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          item.reference,
+                          style: AppTextStyles.arabicCaption.copyWith(
+                            color: AppColors.textTertiaryLight,
+                          ),
+                          textDirection: TextDirection.rtl,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+
+            const Spacer(),
+
+            // Action buttons
+            if (!_isRevealed) ...[
+              ElevatedButton.icon(
+                onPressed: _reveal,
+                icon: const Icon(Icons.visibility_outlined, color: Colors.white),
+                label: Text(
+                  'كشف الإجابة',
+                  style: AppTextStyles.arabicBody.copyWith(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                ),
+              ),
+              const SizedBox(height: 10),
+              OutlinedButton(
+                onPressed: () => _markResult(_AnswerResult.skipped),
+                child: Text(
+                  'تخطي',
+                  style: AppTextStyles.arabicCaption.copyWith(
+                    color: AppColors.textTertiaryLight,
+                  ),
+                ),
+              ),
+            ] else ...[
+              Row(
+                children: [
+                  Expanded(
+                    child: _AnswerButton(
+                      label: 'لم أتذكر',
+                      icon: Icons.close_rounded,
+                      color: AppColors.error,
+                      onTap: () => _markResult(_AnswerResult.incorrect),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _AnswerButton(
+                      label: 'تذكرت',
+                      icon: Icons.check_rounded,
+                      color: AppColors.success,
+                      filled: true,
+                      onTap: () => _markResult(_AnswerResult.correct),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+
+            SizedBox(height: context.bottomPadding + 8),
+          ],
+        ),
+      ),
     );
   }
 }
 
-class _ResultsView extends StatelessWidget {
-  final int correct;
-  final int total;
-  final VoidCallback onRetry;
+// ─────────────────────────────────────────────
+// Score Badge
+// ─────────────────────────────────────────────
 
-  const _ResultsView({
-    required this.correct,
-    required this.total,
-    required this.onRetry,
+class _ScoreBadge extends StatelessWidget {
+  final int count;
+  final Color color;
+  final IconData icon;
+
+  const _ScoreBadge(
+      {required this.count, required this.color, required this.icon});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: color, size: 14),
+          const SizedBox(width: 3),
+          Text(
+            '$count',
+            style: AppTextStyles.labelSmall.copyWith(
+              color: color,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────
+// Answer Button
+// ─────────────────────────────────────────────
+
+class _AnswerButton extends StatelessWidget {
+  final String label;
+  final IconData icon;
+  final Color color;
+  final bool filled;
+  final VoidCallback onTap;
+
+  const _AnswerButton({
+    required this.label,
+    required this.icon,
+    required this.color,
+    this.filled = false,
+    required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    final percentage = (correct / total * 100).round();
+    if (filled) {
+      return ElevatedButton.icon(
+        onPressed: onTap,
+        icon: Icon(icon, color: Colors.white, size: 20),
+        label: Text(
+          label,
+          style: AppTextStyles.arabicCaption.copyWith(
+            color: Colors.white,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: color,
+          padding: const EdgeInsets.symmetric(vertical: 14),
+        ),
+      );
+    }
+    return OutlinedButton.icon(
+      onPressed: onTap,
+      icon: Icon(icon, color: color, size: 20),
+      label: Text(
+        label,
+        style: AppTextStyles.arabicCaption.copyWith(color: color),
+      ),
+      style: OutlinedButton.styleFrom(
+        side: BorderSide(color: color),
+        padding: const EdgeInsets.symmetric(vertical: 14),
+      ),
+    );
+  }
+}
 
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
+// ─────────────────────────────────────────────
+// Results Screen
+// ─────────────────────────────────────────────
+
+class _ResultsScreen extends StatelessWidget {
+  final int correct;
+  final int incorrect;
+  final int total;
+  final int elapsedSeconds;
+  final int failedCount;
+  final VoidCallback? onRepeatFailed;
+  final VoidCallback onRestart;
+
+  const _ResultsScreen({
+    required this.correct,
+    required this.incorrect,
+    required this.total,
+    required this.elapsedSeconds,
+    required this.failedCount,
+    this.onRepeatFailed,
+    required this.onRestart,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final percentage =
+        total > 0 ? (correct / total * 100).round() : 0;
+    final isDark = context.isDarkMode;
+
+    final (emoji, message, color) = switch (percentage) {
+      >= 90 => ('🌟', 'ممتاز! حفظك رائع', AppColors.secondary),
+      >= 70 => ('✨', 'أحسنت! استمر في المراجعة', AppColors.primary),
+      >= 50 => ('💪', 'جيد، كرر المراجعة', AppColors.info),
+      _ => ('🔄', 'لا بأس، تدرب أكثر', AppColors.warning),
+    };
+
+    final mins = elapsedSeconds ~/ 60;
+    final secs = elapsedSeconds % 60;
+    final timeStr =
+        '${mins.toString().padLeft(2, '0')}:${secs.toString().padLeft(2, '0')}';
+
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(
+          'نتيجة الاختبار',
+          style: AppTextStyles.arabicHeadline.copyWith(color: AppColors.primary),
+        ),
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(24),
         child: Column(
-          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              percentage >= 70 ? Icons.emoji_events : Icons.refresh,
-              size: 64,
-              color: percentage >= 70 ? AppColors.secondary : AppColors.primary,
-            ),
             const SizedBox(height: 16),
-            Text(
-              '$percentage%',
-              style: AppTextStyles.displayLarge.copyWith(
-                color: AppColors.primary,
-                fontWeight: FontWeight.w700,
+            // Emoji
+            Text(emoji, style: const TextStyle(fontSize: 64)),
+            const SizedBox(height: 16),
+
+            // Score circle
+            Container(
+              width: 140,
+              height: 140,
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.1),
+                shape: BoxShape.circle,
+                border: Border.all(color: color, width: 3),
+              ),
+              alignment: Alignment.center,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    '$percentage%',
+                    style: AppTextStyles.displayMedium.copyWith(
+                      color: color,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  Text(
+                    '$correct / $total',
+                    style: AppTextStyles.arabicCaption
+                        .copyWith(color: AppColors.textTertiaryLight),
+                    textDirection: TextDirection.rtl,
+                  ),
+                ],
               ),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 20),
+
+            // Message
             Text(
-              '$correct من $total إجابة صحيحة',
-              style: AppTextStyles.arabicBody.copyWith(
-                color: AppColors.textSecondaryLight,
-              ),
+              message,
+              style: AppTextStyles.arabicHeadline.copyWith(color: color),
               textDirection: TextDirection.rtl,
+              textAlign: TextAlign.center,
             ),
             const SizedBox(height: 24),
-            Text(
-              percentage >= 70 ? 'أحسنت! استمر في المراجعة' : 'لا بأس، حاول مرة أخرى',
-              style: AppTextStyles.arabicBody.copyWith(
-                color: AppColors.textSecondaryLight,
+
+            // Stats row
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: isDark ? AppColors.cardDark : AppColors.cardLight,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: isDark ? AppColors.dividerDark : AppColors.dividerLight,
+                ),
               ),
-              textDirection: TextDirection.rtl,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  _ResultStat(
+                    icon: Icons.check_circle,
+                    color: AppColors.success,
+                    value: '$correct',
+                    label: 'صحيح',
+                  ),
+                  Container(
+                      width: 1, height: 40, color: AppColors.dividerLight),
+                  _ResultStat(
+                    icon: Icons.cancel,
+                    color: AppColors.error,
+                    value: '$incorrect',
+                    label: 'خطأ',
+                  ),
+                  Container(
+                      width: 1, height: 40, color: AppColors.dividerLight),
+                  _ResultStat(
+                    icon: Icons.timer_outlined,
+                    color: AppColors.info,
+                    value: timeStr,
+                    label: 'الوقت',
+                  ),
+                ],
+              ),
             ),
-            const SizedBox(height: 24),
-            ElevatedButton(
-              onPressed: onRetry,
-              child: Text(
-                'إعادة الاختبار',
-                style: AppTextStyles.arabicBody.copyWith(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w700,
+            const SizedBox(height: 28),
+
+            // Repeat failed button
+            if (failedCount > 0 && onRepeatFailed != null) ...[
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: onRepeatFailed,
+                  icon: const Icon(Icons.replay, color: Colors.white),
+                  label: Text(
+                    'كرر الآيات الخاطئة ($failedCount)',
+                    style: AppTextStyles.arabicBody.copyWith(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w700,
+                    ),
+                    textDirection: TextDirection.rtl,
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.warning,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
+            ],
+
+            // Restart button
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: onRestart,
+                icon: const Icon(Icons.refresh, color: AppColors.primary),
+                label: Text(
+                  'إعادة الاختبار',
+                  style: AppTextStyles.arabicBody.copyWith(
+                    color: AppColors.primary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 14),
                 ),
               ),
             ),
           ],
         ),
       ),
+    );
+  }
+}
+
+class _ResultStat extends StatelessWidget {
+  final IconData icon;
+  final Color color;
+  final String value;
+  final String label;
+
+  const _ResultStat({
+    required this.icon,
+    required this.color,
+    required this.value,
+    required this.label,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, color: color, size: 20),
+        const SizedBox(height: 4),
+        Text(
+          value,
+          style: AppTextStyles.headlineSmall.copyWith(
+            color: color,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        Text(
+          label,
+          style: AppTextStyles.arabicCaption
+              .copyWith(color: AppColors.textTertiaryLight, fontSize: 12),
+          textDirection: TextDirection.rtl,
+        ),
+      ],
     );
   }
 }
