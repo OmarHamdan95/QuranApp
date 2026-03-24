@@ -1,0 +1,104 @@
+name: quran_app
+description: A comprehensive Quran companion app for reading, listening, and memorizing the Quran.
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.2.0 <4.0.0'
+  flutter: '>=3.16.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+
+  # State Management
+  flutter_riverpod: ^2.4.9
+  riverpod_annotation: ^2.3.3
+
+  # Routing
+  go_router: ^13.0.1
+
+  # Local Database
+  isar: ^3.1.0+1
+  isar_flutter_libs: ^3.1.0+1
+  sqflite: ^2.3.2
+  path_provider: ^2.1.2
+  path: ^1.9.0
+
+  # Audio
+  just_audio: ^0.9.36
+  audio_service: ^0.18.12
+  audio_session: ^0.1.18
+
+  # Prayer Times & Qibla
+  adhan_dart: ^1.0.4
+  flutter_compass: ^0.7.0
+  geolocator: ^11.0.0
+  geocoding: ^3.0.0
+  permission_handler: ^11.2.0
+
+  # Firebase
+  firebase_core: ^2.24.2
+  firebase_analytics: ^10.8.0
+  firebase_crashlytics: ^3.4.8
+
+  # UI & Design
+  flutter_svg: ^2.0.9
+  cached_network_image: ^3.3.1
+  shimmer: ^3.0.0
+  google_fonts: ^6.1.0
+  flutter_animate: ^4.3.0
+  smooth_page_indicator: ^1.1.0
+
+  # Utilities
+  intl: ^0.19.0
+  shared_preferences: ^2.2.2
+  connectivity_plus: ^5.0.2
+  url_launcher: ^6.2.4
+  share_plus: ^7.2.2
+  collection: ^1.18.0
+  equatable: ^2.0.5
+  dartz: ^0.10.1
+  freezed_annotation: ^2.4.1
+  json_annotation: ^4.8.1
+
+  # Dio for networking
+  dio: ^5.4.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.1
+  build_runner: ^2.4.8
+  freezed: ^2.4.6
+  json_serializable: ^6.7.1
+  isar_generator: ^3.1.0+1
+  riverpod_generator: ^2.3.9
+  mockito: ^5.4.4
+  mocktail: ^1.0.3
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/images/
+    - assets/data/
+    - assets/icons/
+    - assets/fonts/
+
+  fonts:
+    - family: Amiri
+      fonts:
+        - asset: assets/fonts/Amiri-Regular.ttf
+        - asset: assets/fonts/Amiri-Bold.ttf
+          weight: 700
+    - family: AmiriQuran
+      fonts:
+        - asset: assets/fonts/AmiriQuran-Regular.ttf
+    - family: Scheherazade
+      fonts:
+        - asset: assets/fonts/ScheherazadeNew-Regular.ttf
+        - asset: assets/fonts/ScheherazadeNew-Bold.ttf
+          weight: 700
